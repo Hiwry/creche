@@ -1,0 +1,212 @@
+<?php
+
+namespace App\Http\Controllers;
+
+use App\Models\AttendanceLog;
+use App\Models\Student;
+use App\Models\ClassModel;
+use App\Models\Setting;
+use Illuminate\Http\Request;
+use Carbon\Carbon;
+
+class AttendanceController extends Controller
+{
+    /**
+     * Display today's attendance.
+     */
+    public function index(Request $request)
+    {
+        $date = $request->input('date', Carbon::today()->toDateString());
+        $dayOfWeek = Carbon::parse($date)->format('l');
+        
+        // Get classes that have activity on this day
+        $classes = ClassModel::active()
+            ->whereJsonContains('days_of_week', strtolower($dayOfWeek))
+            ->with(['activeEnrollments.student'])
+            ->orderBy('start_time')
+            ->get();
+        
+        // Get today's logs
+        $logs = AttendanceLog::forDate($date)
+            ->with(['student', 'classModel'])
+            ->get()
+            ->keyBy(function ($log) {
+                return $log->student_id . '-' . $log->class_id;
+            });
+        
+        return view('attendance.index', compact('classes', 'logs', 'date'));
+    }
+    
+    /**
+     * Check-in a student.
+     */
+    public function checkIn(Request $request)
+    {
+        $request->validate([
+            'student_id' => 'required|exists:students,id',
+            'class_id' => 'required|exists:classes,id',
+            'date' => 'required|date',
+        ]);
+        
+        $class = ClassModel::findOrFail($request->class_id);
+        
+        $log = AttendanceLog::updateOrCreate(
+            [
+                'student_id' => $request->student_id,
+                'class_id' => $request->class_id,
+                'date' => $request->date,
+            ],
+            [
+                'check_in' => $request->input('check_in', Carbon::now()->format('H:i')),
+                'expected_start' => $class->start_time,
+                'expected_end' => $class->end_time,
+                'registered_by' => auth()->id(),
+            ]
+        );
+        
+        return back()->with('success', 'Entrada registrada!');
+    }
+    
+    /**
+     * Check-out a student.
+     */
+    public function checkOut(Request $request)
+    {
+        $request->validate([
+            'student_id' => 'required|exists:students,id',
+            'class_id' => 'required|exists:classes,id',
+            'date' => 'required|date',
+        ]);
+        
+        $log = AttendanceLog::where('student_id', $request->student_id)
+            ->where('class_id', $request->class_id)
+            ->where('date', $request->date)
+            ->first();
+            
+        if (!$log) {
+            return back()->with('error', 'Registro de entrada não encontrado!');
+        }
+        
+        $log->check_out = $request->input('check_out', Carbon::now()->format('H:i'));
+        $log->picked_up_by = $request->picked_up_by;
+        $log->notes = $request->notes;
+        $log->save();
+        
+        // Calculate extra time
+        $tolerance = Setting::getExtraHourTolerance();
+        $hourlyRate = Setting::getExtraHourRate();
+        $log->updateExtraCalculations($hourlyRate, $tolerance);
+        
+        return back()->with('success', 'Saída registrada!');
+    }
+    
+    /**
+     * Quick attendance registration.
+     */
+    public function quickRegister(Request $request)
+    {
+        $request->validate([
+            'student_id' => 'required|exists:students,id',
+            'class_id' => 'required|exists:classes,id',
+            'date' => 'required|date',
+            'type' => 'required|in:check_in,check_out',
+        ]);
+        
+        $class = ClassModel::findOrFail($request->class_id);
+        $now = Carbon::now()->format('H:i');
+        
+        $log = AttendanceLog::firstOrNew([
+            'student_id' => $request->student_id,
+            'class_id' => $request->class_id,
+            'date' => $request->date,
+        ]);
+        
+        $log->expected_start = $class->start_time;
+        $log->expected_end = $class->end_time;
+        $log->registered_by = auth()->id();
+        
+        if ($request->type === 'check_in') {
+            $log->check_in = $now;
+        } else {
+            $log->check_out = $now;
+            
+            // Calculate extra time
+            $tolerance = Setting::getExtraHourTolerance();
+            $hourlyRate = Setting::getExtraHourRate();
+            $log->extra_minutes = $log->calculateExtraMinutes($tolerance);
+            $log->extra_charge = $log->calculateExtraCharge($hourlyRate, $tolerance);
+        }
+        
+        $log->save();
+        
+        $message = $request->type === 'check_in' ? 'Entrada' : 'Saída';
+        return back()->with('success', "{$message} registrada às {$now}!");
+    }
+    
+    /**
+     * Monthly extra hours report.
+     */
+    public function extraHoursReport(Request $request)
+    {
+        $year = $request->input('year', Carbon::now()->year);
+        $month = $request->input('month', Carbon::now()->month);
+        
+        $logs = AttendanceLog::forMonth($year, $month)
+            ->where('extra_minutes', '>', 0)
+            ->with(['student', 'classModel'])
+            ->orderBy('date', 'desc')
+            ->get();
+        
+        // Group by student
+        $byStudent = $logs->groupBy('student_id')->map(function ($studentLogs) {
+            return [
+                'student' => $studentLogs->first()->student,
+                'total_minutes' => $studentLogs->sum('extra_minutes'),
+                'total_charge' => $studentLogs->sum('extra_charge'),
+                'days' => $studentLogs->count(),
+                'logs' => $studentLogs,
+            ];
+        })->sortByDesc('total_minutes');
+        
+        $summary = [
+            'total_minutes' => $logs->sum('extra_minutes'),
+            'total_charge' => $logs->sum('extra_charge'),
+            'students_count' => $byStudent->count(),
+        ];
+        
+        return view('attendance.extra-hours', compact('byStudent', 'summary', 'year', 'month'));
+    }
+    
+    /**
+     * Edit attendance log.
+     */
+    public function edit(AttendanceLog $log)
+    {
+        return view('attendance.edit', compact('log'));
+    }
+    
+    /**
+     * Update attendance log.
+     */
+    public function update(Request $request, AttendanceLog $log)
+    {
+        $request->validate([
+            'check_in' => 'nullable|date_format:H:i',
+            'check_out' => 'nullable|date_format:H:i',
+        ]);
+        
+        $log->check_in = $request->check_in;
+        $log->check_out = $request->check_out;
+        $log->picked_up_by = $request->picked_up_by;
+        $log->notes = $request->notes;
+        $log->save();
+        
+        // Recalculate
+        $tolerance = Setting::getExtraHourTolerance();
+        $hourlyRate = Setting::getExtraHourRate();
+        $log->updateExtraCalculations($hourlyRate, $tolerance);
+        
+        return redirect()->route('attendance.index', ['date' => $log->date->toDateString()])
+            ->with('success', 'Registro atualizado!');
+    }
+}
