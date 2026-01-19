@@ -8,7 +8,6 @@ use App\Models\MaterialFee;
 use App\Models\AttendanceLog;
 use App\Models\ClassModel;
 use App\Models\Payment;
-use App\Models\Expense;
 use Illuminate\Http\Request;
 use Carbon\Carbon;
 
@@ -59,11 +58,6 @@ class DashboardController extends Controller
             ->limit(5)
             ->get();
         
-        // Expenses data
-        $monthlyExpenses = Expense::getMonthlyTotal($currentYear, $currentMonth);
-        $expensesByCategory = Expense::getByCategory($currentYear, $currentMonth);
-        $recentExpenses = Expense::orderBy('created_at', 'desc')->limit(5)->get();
-        
         return view('dashboard', compact(
             'activeStudents',
             'paidFees',
@@ -74,10 +68,7 @@ class DashboardController extends Controller
             'paymentStatusData',
             'extraHoursChartData',
             'todaySchedule',
-            'recentPayments',
-            'monthlyExpenses',
-            'expensesByCategory',
-            'recentExpenses'
+            'recentPayments'
         ));
     }
     
