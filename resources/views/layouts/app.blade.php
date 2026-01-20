@@ -49,7 +49,6 @@
                     <a href="{{ route('financial.index') }}" class="nav-link {{ request()->routeIs('financial.*') ? 'active' : '' }}">
                         <i class="fas fa-dollar-sign"></i>
                         <span>Financeiro</span>
-                        <i class="fas fa-chevron-down nav-arrow"></i>
                     </a>
                     
                     <a href="{{ route('invoices.index') }}" class="nav-link {{ request()->routeIs('invoices.*') ? 'active' : '' }}">
@@ -65,6 +64,12 @@
                     <a href="{{ route('attendance.extra-hours') }}" class="nav-link {{ request()->routeIs('attendance.extra-hours') ? 'active' : '' }}">
                         <i class="fas fa-chart-bar"></i>
                         <span>Relatórios</span>
+                    </a>
+
+                    <div class="nav-section-title" style="margin-top: 20px;">MATERIAIS</div>
+                    <a href="{{ route('school-materials.index') }}" class="nav-link {{ request()->routeIs('school-materials.index') ? 'active' : '' }}">
+                        <i class="fas fa-list-ul"></i>
+                        <span>Lista de Materiais</span>
                     </a>
                     
                     @if(auth()->user()->isAdmin())
@@ -87,9 +92,7 @@
                 </div>
                 
                 <div class="header-actions">
-                    <button class="header-btn">
-                        <i class="fas fa-comment-dots"></i>
-                    </button>
+
                     <button class="header-btn">
                         <i class="fas fa-bell"></i>
                     </button>

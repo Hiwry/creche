@@ -17,12 +17,22 @@ class AttendanceController extends Controller
     public function index(Request $request)
     {
         $date = $request->input('date', Carbon::today()->toDateString());
-        $dayOfWeek = Carbon::parse($date)->format('l');
+        $dayOfWeek = Carbon::parse($date)->translatedFormat('l');
         
-        // Get classes that have activity on this day
+        // Get active classes and filter enrollments if search is present
         $classes = ClassModel::active()
-            ->whereJsonContains('days_of_week', strtolower($dayOfWeek))
-            ->with(['activeEnrollments.student'])
+            ->with(['activeEnrollments' => function($q) use ($request) {
+                $q->whereHas('student', function($sq) use ($request) {
+                    if ($request->filled('search')) {
+                        $sq->where('name', 'like', '%' . $request->search . '%');
+                    }
+                })->with('student');
+            }])
+            ->whereHas('activeEnrollments.student', function($q) use ($request) {
+                if ($request->filled('search')) {
+                    $q->where('name', 'like', '%' . $request->search . '%');
+                }
+            })
             ->orderBy('start_time')
             ->get();
         
@@ -115,11 +125,16 @@ class AttendanceController extends Controller
         $class = ClassModel::findOrFail($request->class_id);
         $now = Carbon::now()->format('H:i');
         
-        $log = AttendanceLog::firstOrNew([
-            'student_id' => $request->student_id,
-            'class_id' => $request->class_id,
-            'date' => $request->date,
-        ]);
+        $date = Carbon::parse($request->date)->format('Y-m-d');
+        
+        $log = AttendanceLog::where('student_id', $request->student_id)
+            ->where('class_id', $request->class_id)
+            ->whereDate('date', $date)
+            ->firstOrNew([
+                'student_id' => $request->student_id,
+                'class_id' => $request->class_id,
+                'date' => $date,
+            ]);
         
         $log->expected_start = $class->start_time;
         $log->expected_end = $class->end_time;
@@ -208,5 +223,11 @@ class AttendanceController extends Controller
         
         return redirect()->route('attendance.index', ['date' => $log->date->toDateString()])
             ->with('success', 'Registro atualizado!');
+    }
+
+    public function destroy(AttendanceLog $log)
+    {
+        $log->delete();
+        return back()->with('success', 'Registro removido com sucesso!');
     }
 }

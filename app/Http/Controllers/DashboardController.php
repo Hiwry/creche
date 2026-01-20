@@ -99,8 +99,13 @@ class DashboardController extends Controller
             $minutes = AttendanceLog::forDate($date->toDateString())
                 ->sum('extra_minutes');
             
+            $daysMap = [
+                'Sun' => 'Dom', 'Mon' => 'Seg', 'Tue' => 'Ter', 'Wed' => 'Qua', 
+                'Thu' => 'Qui', 'Fri' => 'Sex', 'Sat' => 'Sáb'
+            ];
+            
             $data[] = [
-                'day' => $date->format('D'),
+                'day' => $daysMap[$date->format('D')],
                 'date' => $date->format('d/m'),
                 'hours' => round($minutes / 60, 1),
                 'minutes' => $minutes,

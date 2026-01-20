@@ -5,11 +5,12 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\SoftDeletes;
 use Carbon\Carbon;
 
 class AttendanceLog extends Model
 {
-    use HasFactory;
+    use HasFactory, SoftDeletes;
 
     protected $fillable = [
         'student_id',
@@ -27,7 +28,7 @@ class AttendanceLog extends Model
     ];
 
     protected $casts = [
-        'date' => 'date',
+        'date' => 'date:Y-m-d',
         'check_in' => 'datetime:H:i',
         'check_out' => 'datetime:H:i',
         'expected_start' => 'datetime:H:i',
@@ -67,10 +68,16 @@ class AttendanceLog extends Model
     {
         $extraMinutes = 0;
         
+        // Ensure we have strings for parsing
+        $dateStr = $this->date instanceof Carbon ? $this->date->format('Y-m-d') : $this->date;
+        
         // Check early arrival
         if ($this->check_in && $this->expected_start) {
-            $checkIn = Carbon::parse($this->check_in);
-            $expectedStart = Carbon::parse($this->expected_start);
+            $checkInStr = $this->check_in instanceof Carbon ? $this->check_in->format('H:i') : $this->check_in;
+            $expectedStartStr = $this->expected_start instanceof Carbon ? $this->expected_start->format('H:i') : $this->expected_start;
+            
+            $checkIn = Carbon::parse($dateStr . ' ' . $checkInStr);
+            $expectedStart = Carbon::parse($dateStr . ' ' . $expectedStartStr);
             
             if ($checkIn->lt($expectedStart)) {
                 $earlyMinutes = $checkIn->diffInMinutes($expectedStart);
@@ -82,11 +89,19 @@ class AttendanceLog extends Model
         
         // Check late departure
         if ($this->check_out && $this->expected_end) {
-            $checkOut = Carbon::parse($this->check_out);
-            $expectedEnd = Carbon::parse($this->expected_end);
+            $checkInStr = $this->check_in instanceof Carbon ? $this->check_in->format('H:i') : $this->check_in;
+            $checkOutStr = $this->check_out instanceof Carbon ? $this->check_out->format('H:i') : $this->check_out;
+            $expectedEndStr = $this->expected_end instanceof Carbon ? $this->expected_end->format('H:i') : $this->expected_end;
+            
+            $checkIn = $this->check_in ? Carbon::parse($dateStr . ' ' . $checkInStr) : null;
+            $checkOut = Carbon::parse($dateStr . ' ' . $checkOutStr);
+            $expectedEnd = Carbon::parse($dateStr . ' ' . $expectedEndStr);
             
             if ($checkOut->gt($expectedEnd)) {
-                $lateMinutes = $expectedEnd->diffInMinutes($checkOut);
+                // If arrival was after the class ended, extra time only starts from arrival
+                $startPoint = ($checkIn && $checkIn->gt($expectedEnd)) ? $checkIn : $expectedEnd;
+                $lateMinutes = $startPoint->diffInMinutes($checkOut);
+                
                 if ($lateMinutes > $toleranceMinutes) {
                     $extraMinutes += $lateMinutes - $toleranceMinutes;
                 }

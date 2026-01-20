@@ -206,13 +206,17 @@ class StudentController extends Controller
             'guardian',
             'health',
             'documents',
+            'studentMaterials.material',
             'activeEnrollments.classModel',
             'monthlyFees' => fn($q) => $q->orderBy('year', 'desc')->orderBy('month', 'desc'),
             'materialFees' => fn($q) => $q->orderBy('year', 'desc'),
-            'attendanceLogs' => fn($q) => $q->latest('date')->limit(10),
+            'attendanceLogs' => fn($q) => $q->withTrashed()->latest('date')->limit(30),
         ]);
         
-        return view('students.show', compact('student'));
+        $allMaterials = \App\Models\SchoolMaterial::where('is_active', true)->get();
+        $extraHoursSummary = $student->attendanceLogs()->sum('extra_charge');
+        
+        return view('students.show', compact('student', 'allMaterials', 'extraHoursSummary'));
     }
 
     /**
@@ -243,23 +247,19 @@ class StudentController extends Controller
         DB::beginTransaction();
         
         try {
+            $data = $request->except(['photo', 'authorized_pickups']);
+            $data['authorized_pickups'] = $request->authorized_pickups ? json_decode($request->authorized_pickups, true) : null;
+
             // Handle photo upload
             if ($request->hasFile('photo')) {
                 // Delete old photo
                 if ($student->photo) {
                     Storage::disk('public')->delete($student->photo);
                 }
-                $student->photo = $request->file('photo')->store('students/photos', 'public');
+                $data['photo'] = $request->file('photo')->store('students/photos', 'public');
             }
             
-            $student->update([
-                'name' => $request->name,
-                'birth_date' => $request->birth_date,
-                'gender' => $request->gender,
-                'observations' => $request->observations,
-                'status' => $request->status,
-                'authorized_pickups' => $request->authorized_pickups ? json_decode($request->authorized_pickups, true) : null,
-            ]);
+            $student->update($data);
             
             // Update health record
             $student->health()->updateOrCreate(

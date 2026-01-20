@@ -9,10 +9,11 @@
         </span>
     </div>
     <div class="action-bar-right">
-        <form action="{{ route('attendance.index') }}" method="GET" class="filter-form">
+        <form action="{{ route('attendance.index') }}" method="GET" class="filter-form" style="display: flex; gap: 10px; align-items: center;">
+            <input type="text" name="search" class="form-control" placeholder="Buscar aluno..." value="{{ request('search') }}">
             <input type="date" name="date" class="form-control" value="{{ $date }}">
             <button type="submit" class="btn btn-secondary">
-                <i class="fas fa-calendar"></i> Ir
+                <i class="fas fa-search"></i>
             </button>
         </form>
         <a href="{{ route('attendance.extra-hours') }}" class="btn btn-warning">
@@ -51,13 +52,14 @@
                 @php
                     $key = $enrollment->student_id . '-' . $class->id;
                     $log = $logs[$key] ?? null;
+                    $student = $enrollment->student;
                 @endphp
                 <tr>
                     <td>
                         <div style="display: flex; align-items: center; gap: 10px;">
-                            <img src="https://ui-avatars.com/api/?name={{ urlencode($enrollment->student->name) }}&background=7C3AED&color=fff" 
-                                 style="width: 35px; height: 35px; border-radius: 50%;">
-                            <span>{{ $enrollment->student->name }}</span>
+                            <img src="{{ $student->photo_url }}" 
+                                 style="width: 35px; height: 35px; border-radius: 50%; object-fit: cover;">
+                            <span>{{ $student->name }}</span>
                         </div>
                     </td>
                     <td>
@@ -109,6 +111,13 @@
                                 </button>
                             </form>
                             @endif
+
+                            @if($log)
+                            <button type="button" class="btn btn-warning btn-sm" title="Reiniciar registro" 
+                                onclick="openDeleteModal('{{ route('attendance.destroy', $log) }}')">
+                                <i class="fas fa-redo"></i>
+                            </button>
+                            @endif
                         </div>
                     </td>
                 </tr>
@@ -119,11 +128,55 @@
 </div>
 @empty
 <div class="card">
-    <div class="empty-state">
-        <i class="fas fa-calendar-times"></i>
-        <h3>Nenhuma turma programada para este dia</h3>
-        <p>Selecione outra data acima</p>
+    <div style="text-align: center; padding: 40px; color: #6B7280;">
+        <i class="fas fa-school" style="font-size: 48px; margin-bottom: 20px; opacity: 0.5;"></i>
+        <p>Nenhuma turma ou aluno ativo encontrado.</p>
     </div>
 </div>
 @endforelse
+
+{{-- Delete Modal --}}
+<div id="deleteModal" class="modal-overlay" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.5); z-index: 1000; align-items: center; justify-content: center;">
+    <div class="modal-content" style="background: white; padding: 30px; border-radius: 15px; width: 90%; max-width: 400px; text-align: center; box-shadow: 0 10px 25px rgba(0,0,0,0.1);">
+        <div style="margin-bottom: 20px;">
+            <div style="width: 60px; height: 60px; background: #FEF3C7; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 15px;">
+                <i class="fas fa-redo" style="font-size: 24px; color: #D97706;"></i>
+            </div>
+            <h3 style="margin: 0 0 10px; color: #111827; font-size: 1.25rem;">Reiniciar Registro?</h3>
+            <p style="margin: 0; color: #6B7280;">Isso irá limpar os horários de entrada e saída deste aluno para hoje. Deseja continuar?</p>
+        </div>
+        
+        <form id="deleteForm" method="POST" style="display: flex; gap: 10px; justify-content: center;">
+            @csrf
+            @method('DELETE')
+            <button type="button" onclick="closeDeleteModal()" class="btn" style="background: #E5E7EB; color: #374151; border: none; padding: 10px 20px; border-radius: 8px; cursor: pointer;">
+                Cancelar
+            </button>
+            <button type="submit" class="btn" style="background: #D97706; color: white; border: none; padding: 10px 20px; border-radius: 8px; cursor: pointer;">
+                Sim, Reiniciar
+            </button>
+        </form>
+    </div>
+</div>
+
+<script>
+function openDeleteModal(url) {
+    const modal = document.getElementById('deleteModal');
+    const form = document.getElementById('deleteForm');
+    form.action = url;
+    modal.style.display = 'flex';
+}
+
+function closeDeleteModal() {
+    const modal = document.getElementById('deleteModal');
+    modal.style.display = 'none';
+}
+
+// Close modal when clicking outside
+document.getElementById('deleteModal').addEventListener('click', function(e) {
+    if (e.target === this) {
+        closeDeleteModal();
+    }
+});
+</script>
 @endsection

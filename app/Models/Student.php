@@ -121,6 +121,14 @@ class Student extends Model
     }
 
     /**
+     * Get the school materials.
+     */
+    public function studentMaterials(): HasMany
+    {
+        return $this->hasMany(StudentMaterial::class);
+    }
+
+    /**
      * Get the student's age.
      */
     public function getAgeAttribute(): ?int
@@ -150,6 +158,21 @@ class Student extends Model
             'suspended' => 'warning',
             default => 'secondary',
         };
+    }
+
+    /**
+     * Get the photo URL.
+     */
+    public function getPhotoUrlAttribute(): string
+    {
+        if (!$this->photo) {
+            return "https://ui-avatars.com/api/?name=" . urlencode($this->name) . "&background=7C3AED&color=fff";
+        }
+
+        // Handle case where path is just filename or full path
+        $path = str_contains($this->photo, '/') ? $this->photo : 'students/photos/' . $this->photo;
+        
+        return asset('storage/' . $path);
     }
 
     /**

@@ -59,6 +59,7 @@ Route::middleware(['auth'])->group(function () {
         Route::get('/extra-hours', [AttendanceController::class, 'extraHoursReport'])->name('extra-hours');
         Route::get('/{log}/edit', [AttendanceController::class, 'edit'])->name('edit');
         Route::put('/{log}', [AttendanceController::class, 'update'])->name('update');
+        Route::delete('/{log}', [AttendanceController::class, 'destroy'])->name('destroy');
     });
     
     // Invoices
@@ -89,5 +90,15 @@ Route::middleware(['auth'])->group(function () {
         Route::get('/', [SettingController::class, 'index'])->name('index');
         Route::post('/', [SettingController::class, 'update'])->name('update');
         Route::post('/logo', [SettingController::class, 'uploadLogo'])->name('upload-logo');
+    });
+
+    // School Materials
+    Route::prefix('school-materials')->name('school-materials.')->group(function () {
+        Route::get('/', [\App\Http\Controllers\SchoolMaterialController::class, 'index'])->name('index');
+        Route::post('/', [\App\Http\Controllers\SchoolMaterialController::class, 'store'])->name('store');
+        Route::delete('/{schoolMaterial}', [\App\Http\Controllers\SchoolMaterialController::class, 'destroy'])->name('destroy');
+        Route::get('/bulk-check', [\App\Http\Controllers\SchoolMaterialController::class, 'bulkCheck'])->name('bulk-check');
+        Route::post('/bulk-check', [\App\Http\Controllers\SchoolMaterialController::class, 'updateBulkCheck'])->name('update-bulk-check');
+        Route::post('/{student}/update-checklist', [\App\Http\Controllers\SchoolMaterialController::class, 'updateStudentChecklist'])->name('student-checklist.update');
     });
 });
