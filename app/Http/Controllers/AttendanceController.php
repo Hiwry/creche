@@ -208,6 +208,8 @@ class AttendanceController extends Controller
         $request->validate([
             'check_in' => 'nullable|date_format:H:i',
             'check_out' => 'nullable|date_format:H:i',
+            'extra_minutes' => 'nullable|integer|min:0',
+            'extra_charge' => 'nullable|numeric|min:0',
         ]);
         
         $log->check_in = $request->check_in;
@@ -216,10 +218,18 @@ class AttendanceController extends Controller
         $log->notes = $request->notes;
         $log->save();
         
-        // Recalculate
-        $tolerance = Setting::getExtraHourTolerance();
-        $hourlyRate = Setting::getExtraHourRate();
-        $log->updateExtraCalculations($hourlyRate, $tolerance);
+        // Check if manual overrides are present
+        if ($request->filled('extra_minutes') || $request->filled('extra_charge')) {
+            $log->extra_minutes = $request->input('extra_minutes', 0);
+            $log->extra_charge = $request->input('extra_charge', 0);
+        } else {
+            // Recalculate based on times if not manually overriden
+            $tolerance = Setting::getExtraHourTolerance();
+            $hourlyRate = Setting::getExtraHourRate();
+            $log->updateExtraCalculations($hourlyRate, $tolerance);
+        }
+        
+        $log->save();
         
         return redirect()->route('attendance.index', ['date' => $log->date->toDateString()])
             ->with('success', 'Registro atualizado!');

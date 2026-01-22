@@ -19,6 +19,7 @@
                     <thead>
                         <tr>
                             <th>Nome</th>
+                            <th>Valor</th>
                             <th>Descrição</th>
                             <th>Ações</th>
                         </tr>
@@ -27,6 +28,7 @@
                         @forelse($materials as $material)
                         <tr>
                             <td>{{ $material->name }}</td>
+                            <td>{{ $material->value ? 'R$ ' . number_format($material->value, 2, ',', '.') : '-' }}</td>
                             <td>{{ $material->description }}</td>
                             <td>
                                 <form action="{{ route('school-materials.destroy', $material) }}" method="POST" onsubmit="return confirm('Tem certeza que deseja remover este material?')">
@@ -40,7 +42,7 @@
                         </tr>
                         @empty
                         <tr>
-                            <td colspan="3" class="text-center">Nenhum material cadastrado</td>
+                            <td colspan="4" class="text-center">Nenhum material cadastrado</td>
                         </tr>
                         @endforelse
                     </tbody>
@@ -60,6 +62,10 @@
                 <div class="form-group" style="margin-bottom: 15px;">
                     <label>Nome do Material</label>
                     <input type="text" name="name" class="form-control" required placeholder="Ex: Caderno 96 folhas">
+                </div>
+                <div class="form-group" style="margin-bottom: 15px;">
+                    <label>Valor (Opcional)</label>
+                    <input type="number" step="0.01" min="0" name="value" class="form-control" placeholder="0,00">
                 </div>
                 <div class="form-group" style="margin-bottom: 15px;">
                     <label>Descrição (Opcional)</label>

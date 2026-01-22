@@ -113,16 +113,20 @@ class InvoiceController extends Controller
         // Add extra hours
         $extraHours = AttendanceLog::where('student_id', $student->id)
             ->forMonth($year, $month)
-            ->where('extra_minutes', '>', 0)
+            ->where('extra_charge', '>', 0)
             ->get();
             
         $totalExtraMinutes = $extraHours->sum('extra_minutes');
         $totalExtraCharge = $extraHours->sum('extra_charge');
         
         if ($totalExtraCharge > 0) {
-            $hours = floor($totalExtraMinutes / 60);
-            $minutes = $totalExtraMinutes % 60;
-            $description = "Horas extras ({$hours}h{$minutes}min)";
+            if ($totalExtraMinutes > 0) {
+                $hours = floor($totalExtraMinutes / 60);
+                $minutes = $totalExtraMinutes % 60;
+                $description = "Horas extras ({$hours}h{$minutes}min)";
+            } else {
+                $description = "Adicional de Horas Extras";
+            }
             
             $invoice->addItem(
                 'extra_hours',
@@ -284,12 +288,24 @@ class InvoiceController extends Controller
         }
         
         // Add extra hours
-        $totalExtraCharge = AttendanceLog::where('student_id', $student->id)
+        $extraHours = AttendanceLog::where('student_id', $student->id)
             ->forMonth($year, $month)
-            ->sum('extra_charge');
+            ->where('extra_charge', '>', 0)
+            ->get();
+            
+        $totalExtraMinutes = $extraHours->sum('extra_minutes');
+        $totalExtraCharge = $extraHours->sum('extra_charge');
             
         if ($totalExtraCharge > 0) {
-            $invoice->addItem('extra_hours', "Horas extras do mês", 1, $totalExtraCharge);
+            if ($totalExtraMinutes > 0) {
+                $hours = floor($totalExtraMinutes / 60);
+                $minutes = $totalExtraMinutes % 60;
+                $description = "Horas extras ({$hours}h{$minutes}min)";
+            } else {
+                $description = "Adicional de Horas Extras";
+            }
+
+            $invoice->addItem('extra_hours', $description, 1, $totalExtraCharge);
         }
         
         return $invoice;

@@ -13,6 +13,7 @@ class SchoolMaterial extends Model
     protected $fillable = [
         'name',
         'description',
+        'value',
         'is_active',
     ];
 

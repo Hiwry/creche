@@ -21,6 +21,7 @@ class SchoolMaterialController extends Controller
         $validated = $request->validate([
             'name' => 'required|string|max:255',
             'description' => 'nullable|string',
+            'value' => 'nullable|numeric|min:0',
         ]);
 
         SchoolMaterial::create($validated);
