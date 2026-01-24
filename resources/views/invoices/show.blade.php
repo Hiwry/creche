@@ -18,6 +18,12 @@
             <i class="fas fa-file-pdf"></i> Baixar PDF
         </a>
         @if($invoice->status === 'draft')
+        <form action="{{ route('invoices.recalculate', $invoice) }}" method="POST" style="display: inline;">
+            @csrf
+            <button type="submit" class="btn btn-info" title="Atualizar itens e valores">
+                <i class="fas fa-sync"></i> Recalcular
+            </button>
+        </form>
         <form action="{{ route('invoices.send', $invoice) }}" method="POST" style="display: inline;">
             @csrf
             <button type="submit" class="btn btn-warning">

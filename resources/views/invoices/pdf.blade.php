@@ -203,8 +203,36 @@
     <!-- Company Info -->
     <div class="rounded-box">
         <div class="logo-container">
-            <!-- Placeholder for logo if we had one functioning url -->
-            <img src="{{ public_path('images/logo.png') }}" style="max-width: 60px; max-height: 60px;" onerror="this.style.display='none'"> 
+            @php
+                $logoPath = null;
+                $logoData = null;
+                
+                if (isset($settings['company_logo']) && $settings['company_logo']) {
+                    $possiblePath = storage_path('app/public/' . $settings['company_logo']);
+                    if (file_exists($possiblePath)) {
+                        $logoPath = $possiblePath;
+                    }
+                }
+
+                if ($logoPath) {
+                    try {
+                        $type = pathinfo($logoPath, PATHINFO_EXTENSION);
+                        $data = file_get_contents($logoPath);
+                        $logoData = 'data:image/' . $type . ';base64,' . base64_encode($data);
+                    } catch (\Exception $e) {
+                        $logoData = null;
+                    }
+                }
+            @endphp
+
+            @if($logoData)
+                <img src="{{ $logoData }}" style="max-width: 80px; max-height: 80px;">
+            @else
+                <!-- Fallback to empty or default if needed -->
+                <div style="width: 60px; height: 60px; border: 1px dashed #ccc; display: flex; align-items: center; justify-content: center; color: #ccc; font-size: 8px;">
+                    Sem Logo
+                </div>
+            @endif
         </div>
         <div class="company-header">{{ $settings['company_name'] ?? 'CRECHE ESCOLA DONA CORUJA LTDA' }}</div>
         <div class="company-details">

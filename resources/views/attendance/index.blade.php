@@ -5,7 +5,7 @@
     <div class="action-bar-left">
         <h1 style="font-size: 1.5rem; font-weight: 600;">Entrada & Saída</h1>
         <span style="color: #6B7280; margin-left: 10px;">
-            {{ \Carbon\Carbon::parse($date)->format('d/m/Y (l)') }}
+            {{ \Carbon\Carbon::parse($date)->format('d/m/Y') }} ({{ ucfirst(\Carbon\Carbon::parse($date)->locale('pt_BR')->translatedFormat('l')) }})
         </span>
     </div>
     <div class="action-bar-right">

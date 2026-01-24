@@ -79,9 +79,42 @@ class InvoiceController extends Controller
             'due_date' => Carbon::create($year, $month, Setting::getPaymentDueDay()),
         ]);
         
+        $this->calculateItems($invoice);
+        
+        return redirect()->route('invoices.show', $invoice)
+            ->with('success', 'Fatura gerada com sucesso!');
+    }
+
+    /**
+     * Recalculate invoice items (for draft invoices).
+     */
+    public function recalculate(Invoice $invoice)
+    {
+        if ($invoice->status !== 'draft') {
+            return back()->with('error', 'Apenas faturas em rascunho podem ser recalculadas.');
+        }
+
+        // Remove existing items
+        $invoice->items()->delete();
+
+        // Recalculate
+        $this->calculateItems($invoice);
+
+        // Update totals
+        $invoice->recalculateTotals();
+        $invoice->save();
+
+        return back()->with('success', 'Fatura recalculada com sucesso!');
+    }
+
+    /**
+     * Helper to calculate and add items to an invoice.
+     */
+    private function calculateItems(Invoice $invoice)
+    {
         // Add monthly fees
-        $monthlyFees = MonthlyFee::where('student_id', $student->id)
-            ->forMonth($year, $month)
+        $monthlyFees = MonthlyFee::where('student_id', $invoice->student_id)
+            ->forMonth($invoice->year, $invoice->month)
             ->get();
             
         foreach ($monthlyFees as $fee) {
@@ -96,23 +129,23 @@ class InvoiceController extends Controller
         }
         
         // Add material fee if pending
-        $materialFee = MaterialFee::where('student_id', $student->id)
-            ->forYear($year)
+        $materialFee = MaterialFee::where('student_id', $invoice->student_id)
+            ->forYear($invoice->year)
             ->pending()
             ->first();
             
         if ($materialFee && $materialFee->remaining_amount > 0) {
             $invoice->addItem(
                 'material_fee',
-                "Taxa de Material {$year}",
+                "Taxa de Material {$invoice->year}",
                 1,
                 $materialFee->remaining_amount
             );
         }
         
         // Add extra hours
-        $extraHours = AttendanceLog::where('student_id', $student->id)
-            ->forMonth($year, $month)
+        $extraHours = AttendanceLog::where('student_id', $invoice->student_id)
+            ->forMonth($invoice->year, $invoice->month)
             ->where('extra_charge', '>', 0)
             ->get();
             
@@ -135,9 +168,6 @@ class InvoiceController extends Controller
                 $totalExtraCharge
             );
         }
-        
-        return redirect()->route('invoices.show', $invoice)
-            ->with('success', 'Fatura gerada com sucesso!');
     }
     
     /**
@@ -157,7 +187,11 @@ class InvoiceController extends Controller
     {
         $invoice->load(['student.guardian', 'items']);
         
-        $settings = Setting::getByGroup('company');
+        $settings = array_merge(
+            Setting::getByGroup('company'),
+            Setting::getByGroup('financial'),
+            Setting::getByGroup('invoice')
+        );
         
         $pdf = Pdf::loadView('invoices.pdf', [
             'invoice' => $invoice,

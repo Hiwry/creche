@@ -41,7 +41,7 @@
                         <span>Turmas</span>
                     </a>
                     
-                    <a href="{{ route('attendance.index') }}" class="nav-link {{ request()->routeIs('attendance.*') ? 'active' : '' }}">
+                    <a href="{{ route('attendance.index') }}" class="nav-link {{ (request()->routeIs('attendance.*') && !request()->routeIs('attendance.extra-hours')) ? 'active' : '' }}">
                         <i class="fas fa-clock"></i>
                         <span>Entrada & Saída</span>
                     </a>

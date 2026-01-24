@@ -109,6 +109,12 @@
                 <textarea name="medications" class="form-control" rows="2" 
                           placeholder="Liste os medicamentos que o aluno toma">{{ old('medications', $student->health->medications ?? '') }}</textarea>
             </div>
+
+            <div class="form-group">
+                <label class="form-label">Outras Condições / Observações</label>
+                <textarea name="medical_conditions" class="form-control" rows="3" 
+                          placeholder="Condições médicas, cuidados especiais, etc.">{{ old('medical_conditions', $student->health->medical_conditions ?? '') }}</textarea>
+            </div>
             
             <div class="grid grid-2">
                 <div class="form-group">

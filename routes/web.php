@@ -72,6 +72,7 @@ Route::middleware(['auth'])->group(function () {
         Route::post('/{invoice}/send', [InvoiceController::class, 'markAsSent'])->name('send');
         Route::post('/{invoice}/paid', [InvoiceController::class, 'markAsPaid'])->name('paid');
         Route::post('/{invoice}/cancel', [InvoiceController::class, 'cancel'])->name('cancel');
+        Route::post('/{invoice}/recalculate', [InvoiceController::class, 'recalculate'])->name('recalculate');
     });
     
     // Expenses

@@ -195,6 +195,13 @@
                 <strong>Restrições Alimentares:</strong> {{ $student->health->dietary_restrictions }}
             </div>
             @endif
+
+            @if($student->health && $student->health->medical_conditions)
+            <div class="alert alert-info" style="margin: 0; margin-top: 10px; grid-column: 1 / -1;">
+                <i class="fas fa-notes-medical"></i>
+                <strong>Condições e Observações:</strong> {{ $student->health->medical_conditions }}
+            </div>
+            @endif
         </div>
 
         <div style="margin-top: 20px;">
@@ -332,7 +339,12 @@
                     <i class="fas fa-history" style="color: #F59E0B; margin-right: 10px;"></i>
                     Histórico de Presença
                 </h3>
-                <span class="badge badge-warning">Extra Total: R$ {{ number_format($extraHoursSummary, 2, ',', '.') }}</span>
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <span class="badge badge-warning">Extra Total: R$ {{ number_format($extraHoursSummary, 2, ',', '.') }}</span>
+                    <a href="{{ route('attendance.extra-hours', ['student_id' => $student->id]) }}" class="btn btn-sm btn-secondary" title="Ver relatório detalhado">
+                        <i class="fas fa-expand-alt"></i> Expandir
+                    </a>
+                </div>
             </div>
             <div class="card-body">
                 <div class="table-container">

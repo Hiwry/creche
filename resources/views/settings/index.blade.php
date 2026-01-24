@@ -7,7 +7,7 @@
     </div>
 </div>
 
-<form action="{{ route('settings.update') }}" method="POST">
+<form action="{{ route('settings.update') }}" method="POST" enctype="multipart/form-data">
     @csrf
     
     <div class="grid grid-2">
@@ -23,8 +23,19 @@
             @foreach($companySettings as $setting)
             <div class="form-group">
                 <label class="form-label">{{ $setting->label }}</label>
-                <input type="text" name="settings[{{ $setting->key }}]" class="form-control" 
-                       value="{{ $setting->value }}">
+                
+                @if($setting->key === 'company_logo')
+                    @if($setting->value)
+                    <div style="margin-bottom: 10px; padding: 10px; background: #f3f4f6; border-radius: 8px; display: inline-block;">
+                        <img src="{{ asset('storage/' . $setting->value) }}" style="max-height: 80px; display: block;">
+                    </div>
+                    @endif
+                    <input type="file" name="company_logo" class="form-control" accept="image/*">
+                    <small style="color: #6B7280;">Deixe em branco para manter o atual</small>
+                @else
+                    <input type="text" name="settings[{{ $setting->key }}]" class="form-control" 
+                           value="{{ $setting->value }}">
+                @endif
             </div>
             @endforeach
         </div>

@@ -146,6 +146,7 @@ class StudentController extends Controller
                 'medications' => $request->medications,
                 'allergies' => $request->allergies,
                 'dietary_restrictions' => $request->dietary_restrictions,
+                'medical_conditions' => $request->medical_conditions,
                 'blood_type' => $request->blood_type,
                 'emergency_contact_name' => $request->emergency_contact_name,
                 'emergency_contact_phone' => $request->emergency_contact_phone,
@@ -269,13 +270,14 @@ class StudentController extends Controller
                     'health_plan_number' => $request->health_plan_number,
                     'health_plan_validity' => $request->health_plan_validity,
                     'medications' => $request->medications,
-                    'allergies' => $request->allergies,
-                    'dietary_restrictions' => $request->dietary_restrictions,
-                    'blood_type' => $request->blood_type,
-                    'emergency_contact_name' => $request->emergency_contact_name,
-                    'emergency_contact_phone' => $request->emergency_contact_phone,
-                ]
-            );
+                'allergies' => $request->allergies,
+                'dietary_restrictions' => $request->dietary_restrictions,
+                'medical_conditions' => $request->medical_conditions,
+                'blood_type' => $request->blood_type,
+                'emergency_contact_name' => $request->emergency_contact_name,
+                'emergency_contact_phone' => $request->emergency_contact_phone,
+            ]
+        );
             
             DB::commit();
             

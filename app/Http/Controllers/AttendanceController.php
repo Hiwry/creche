@@ -166,9 +166,16 @@ class AttendanceController extends Controller
         $year = $request->input('year', Carbon::now()->year);
         $month = $request->input('month', Carbon::now()->month);
         
-        $logs = AttendanceLog::forMonth($year, $month)
-            ->where('extra_minutes', '>', 0)
-            ->with(['student', 'classModel'])
+        $query = AttendanceLog::forMonth($year, $month)
+            ->with(['student', 'classModel']);
+
+        if (!$request->filled('student_id')) {
+            $query->where('extra_minutes', '>', 0);
+        }
+
+        $logs = $query->when($request->filled('student_id'), function($q) use ($request) {
+                $q->where('student_id', $request->student_id);
+            })
             ->orderBy('date', 'desc')
             ->get();
         
@@ -189,7 +196,12 @@ class AttendanceController extends Controller
             'students_count' => $byStudent->count(),
         ];
         
-        return view('attendance.extra-hours', compact('byStudent', 'summary', 'year', 'month'));
+        $selectedStudent = null;
+        if ($request->filled('student_id')) {
+             $selectedStudent = Student::find($request->student_id);
+        }
+
+        return view('attendance.extra-hours', compact('byStudent', 'summary', 'year', 'month', 'selectedStudent'));
     }
     
     /**
