@@ -54,13 +54,22 @@
                 </div>
             </div>
             
-            <div class="form-group">
-                <label class="form-label">Status</label>
-                <select name="status" class="form-control">
-                    <option value="active" {{ old('status', $student->status) == 'active' ? 'selected' : '' }}>Ativo</option>
-                    <option value="inactive" {{ old('status', $student->status) == 'inactive' ? 'selected' : '' }}>Inativo</option>
-                    <option value="suspended" {{ old('status', $student->status) == 'suspended' ? 'selected' : '' }}>Suspenso</option>
-                </select>
+            <div class="grid grid-2">
+                <div class="form-group">
+                    <label class="form-label">Status</label>
+                    <select name="status" class="form-control">
+                        <option value="active" {{ old('status', $student->status) == 'active' ? 'selected' : '' }}>Ativo</option>
+                        <option value="inactive" {{ old('status', $student->status) == 'inactive' ? 'selected' : '' }}>Inativo</option>
+                        <option value="suspended" {{ old('status', $student->status) == 'suspended' ? 'selected' : '' }}>Suspenso</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Valor da Mensalidade (R$)</label>
+                    <input type="number" name="monthly_fee" class="form-control" step="0.01" min="0" 
+                           value="{{ old('monthly_fee', $student->monthly_fee) }}" placeholder="Ex: 500.00">
+                    <small style="color: #6B7280;">Se vazio, usará o valor padrão do sistema.</small>
+                </div>
             </div>
             
             <div class="form-group">

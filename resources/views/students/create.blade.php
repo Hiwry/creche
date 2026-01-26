@@ -56,16 +56,25 @@
                 </div>
             </div>
             
-            <div class="form-group">
-                <label class="form-label">Turma</label>
-                <select name="class_id" class="form-control">
-                    <option value="">Selecione uma turma</option>
-                    @foreach($classes as $class)
-                    <option value="{{ $class->id }}" {{ old('class_id') == $class->id ? 'selected' : '' }}>
-                        {{ $class->name }} ({{ $class->formatted_schedule }})
-                    </option>
-                    @endforeach
-                </select>
+            <div class="grid grid-2">
+                <div class="form-group">
+                    <label class="form-label">Turma</label>
+                    <select name="class_id" class="form-control">
+                        <option value="">Selecione uma turma</option>
+                        @foreach($classes as $class)
+                        <option value="{{ $class->id }}" {{ old('class_id') == $class->id ? 'selected' : '' }}>
+                            {{ $class->name }} ({{ $class->formatted_schedule }})
+                        </option>
+                        @endforeach
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Valor da Mensalidade (R$)</label>
+                    <input type="number" name="monthly_fee" class="form-control" step="0.01" min="0" 
+                           value="{{ old('monthly_fee') }}" placeholder="Ex: 500.00">
+                    <small style="color: #6B7280;">Se vazio, usará o valor padrão do sistema.</small>
+                </div>
             </div>
             
             <div class="form-group">
