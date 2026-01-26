@@ -80,17 +80,9 @@
                 </div>
             </div>
             
-            <div class="grid grid-2">
-                <div class="form-group">
-                    <label class="form-label">Capacidade</label>
-                    <input type="number" name="capacity" class="form-control" value="{{ old('capacity', $class->capacity) }}" min="1">
-                </div>
-                
-                <div class="form-group">
-                    <label class="form-label">Mensalidade (R$)</label>
-                    <input type="number" name="monthly_fee" class="form-control" 
-                           value="{{ old('monthly_fee', $class->monthly_fee) }}" step="0.01" min="0">
-                </div>
+            <div class="form-group">
+                <label class="form-label">Capacidade</label>
+                <input type="number" name="capacity" class="form-control" value="{{ old('capacity', $class->capacity) }}" min="1">
             </div>
             
             <div class="form-group">

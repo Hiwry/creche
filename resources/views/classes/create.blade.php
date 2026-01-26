@@ -75,18 +75,10 @@
             </div>
         </div>
         
-        <div class="grid grid-2">
-            <div class="form-group">
-                <label class="form-label">Capacidade (alunos)</label>
-                <input type="number" name="capacity" class="form-control" value="{{ old('capacity') }}" 
-                       min="1" placeholder="Ex: 15">
-            </div>
-            
-            <div class="form-group">
-                <label class="form-label">Mensalidade (R$)</label>
-                <input type="number" name="monthly_fee" class="form-control" value="{{ old('monthly_fee') }}" 
-                       step="0.01" min="0" placeholder="Ex: 350.00">
-            </div>
+        <div class="form-group">
+            <label class="form-label">Capacidade (alunos)</label>
+            <input type="number" name="capacity" class="form-control" value="{{ old('capacity') }}" 
+                   min="1" placeholder="Ex: 15">
         </div>
         
         <div style="margin-top: 20px; display: flex; gap: 10px; justify-content: flex-end;">
