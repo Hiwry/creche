@@ -66,19 +66,7 @@
                 </div>
             </div>
             
-            <div class="grid grid-2">
-                <div class="form-group">
-                    <label class="form-label">Horário Início *</label>
-                    <input type="time" name="start_time" class="form-control" 
-                           value="{{ old('start_time', $class->start_time ? \Carbon\Carbon::parse($class->start_time)->format('H:i') : '') }}" required>
-                </div>
-                
-                <div class="form-group">
-                    <label class="form-label">Horário Fim *</label>
-                    <input type="time" name="end_time" class="form-control" 
-                           value="{{ old('end_time', $class->end_time ? \Carbon\Carbon::parse($class->end_time)->format('H:i') : '') }}" required>
-                </div>
-            </div>
+
             
             <div class="form-group">
                 <label class="form-label">Capacidade</label>

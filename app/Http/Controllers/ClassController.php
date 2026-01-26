@@ -49,10 +49,7 @@ class ClassController extends Controller
             'teacher_id' => 'nullable|exists:users,id',
             'days_of_week' => 'required|array|min:1',
             'days_of_week.*' => 'in:monday,tuesday,wednesday,thursday,friday,saturday,sunday',
-            'start_time' => 'required|date_format:H:i',
-            'end_time' => 'required|date_format:H:i|after:start_time',
             'capacity' => 'nullable|integer|min:1',
-            'monthly_fee' => 'nullable|numeric|min:0',
         ]);
         
         $class = ClassModel::create([
@@ -60,10 +57,7 @@ class ClassController extends Controller
             'description' => $request->description,
             'teacher_id' => $request->teacher_id,
             'days_of_week' => $request->days_of_week,
-            'start_time' => $request->start_time,
-            'end_time' => $request->end_time,
             'capacity' => $request->capacity,
-            'monthly_fee' => $request->monthly_fee,
             'status' => 'active',
         ]);
         
@@ -104,10 +98,7 @@ class ClassController extends Controller
             'name' => 'required|string|max:255',
             'teacher_id' => 'nullable|exists:users,id',
             'days_of_week' => 'required|array|min:1',
-            'start_time' => 'required|date_format:H:i',
-            'end_time' => 'required|date_format:H:i|after:start_time',
             'capacity' => 'nullable|integer|min:1',
-            'monthly_fee' => 'nullable|numeric|min:0',
             'status' => 'required|in:active,inactive',
         ]);
         
@@ -116,10 +107,7 @@ class ClassController extends Controller
             'description' => $request->description,
             'teacher_id' => $request->teacher_id,
             'days_of_week' => $request->days_of_week,
-            'start_time' => $request->start_time,
-            'end_time' => $request->end_time,
             'capacity' => $request->capacity,
-            'monthly_fee' => $request->monthly_fee,
             'status' => $request->status,
         ]);
         

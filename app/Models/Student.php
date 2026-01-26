@@ -23,11 +23,17 @@ class Student extends Model
         'observations',
         'status',
         'authorized_pickups',
+        'monthly_fee',
+        'start_time',
+        'end_time',
     ];
 
     protected $casts = [
         'birth_date' => 'date',
         'authorized_pickups' => 'array',
+        'monthly_fee' => 'decimal:2',
+        'start_time' => 'datetime:H:i',
+        'end_time' => 'datetime:H:i',
     ];
 
     /**

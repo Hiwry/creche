@@ -96,6 +96,10 @@ class StudentController extends Controller
             'class_id' => 'nullable|exists:classes,id',
             // Photo
             'photo' => 'nullable|image|max:2048',
+            // Individual fields
+            'monthly_fee' => 'nullable|numeric|min:0',
+            'start_time' => 'nullable|date_format:H:i',
+            'end_time' => 'nullable|date_format:H:i',
         ]);
         
         DB::beginTransaction();
@@ -135,6 +139,9 @@ class StudentController extends Controller
                 'observations' => $request->observations,
                 'status' => 'active',
                 'authorized_pickups' => $request->authorized_pickups ? json_decode($request->authorized_pickups, true) : null,
+                'monthly_fee' => $request->monthly_fee,
+                'start_time' => $request->start_time,
+                'end_time' => $request->end_time,
             ]);
             
             // Create health record
@@ -243,6 +250,9 @@ class StudentController extends Controller
             'gender' => 'nullable|in:M,F,O',
             'status' => 'required|in:active,inactive,suspended',
             'photo' => 'nullable|image|max:2048',
+            'monthly_fee' => 'nullable|numeric|min:0',
+            'start_time' => 'nullable|date_format:H:i',
+            'end_time' => 'nullable|date_format:H:i',
         ]);
         
         DB::beginTransaction();

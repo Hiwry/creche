@@ -76,6 +76,18 @@
                     <small style="color: #6B7280;">Se vazio, usará o valor padrão do sistema.</small>
                 </div>
             </div>
+
+            <div class="grid grid-2">
+                <div class="form-group">
+                    <label class="form-label">Horário de Entrada</label>
+                    <input type="time" name="start_time" class="form-control" value="{{ old('start_time') }}">
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">Horário de Saída</label>
+                    <input type="time" name="end_time" class="form-control" value="{{ old('end_time') }}">
+                </div>
+            </div>
             
             <div class="form-group">
                 <label class="form-label">Foto</label>
