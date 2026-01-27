@@ -185,22 +185,32 @@ class InvoiceController extends Controller
      */
     public function downloadPdf(Invoice $invoice)
     {
-        $invoice->load(['student.guardian', 'items']);
-        
-        $settings = array_merge(
-            Setting::getByGroup('company'),
-            Setting::getByGroup('financial'),
-            Setting::getByGroup('invoice')
-        );
-        
-        $pdf = Pdf::loadView('invoices.pdf', [
-            'invoice' => $invoice,
-            'settings' => $settings,
-        ]);
-        
-        $filename = "fatura_" . str_replace('/', '_', $invoice->invoice_number) . ".pdf";
-        
-        return $pdf->download($filename);
+        try {
+            $invoice->load(['student.guardian', 'items']);
+            
+            $settings = array_merge(
+                Setting::getByGroup('company'),
+                Setting::getByGroup('financial'),
+                Setting::getByGroup('invoice')
+            );
+            
+            $pdf = Pdf::loadView('invoices.pdf', [
+                'invoice' => $invoice,
+                'settings' => $settings,
+            ]);
+            
+            $filename = "fatura_" . str_replace('/', '_', $invoice->invoice_number) . ".pdf";
+            
+            return $pdf->download($filename);
+        } catch (\Throwable $e) {
+            return response()->make("
+                <h1>Erro ao gerar PDF</h1>
+                <p><strong>Mensagem:</strong> " . $e->getMessage() . "</p>
+                <p><strong>Arquivo:</strong> " . $e->getFile() . "</p>
+                <p><strong>Linha:</strong> " . $e->getLine() . "</p>
+                <pre>" . $e->getTraceAsString() . "</pre>
+            ", 500);
+        }
     }
     
     /**
