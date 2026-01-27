@@ -206,7 +206,7 @@ class FinancialController extends Controller
                     continue;
                 }
                 
-                $amount = $student->monthly_fee ?? ($enrollment->classModel->monthly_fee ?? $defaultFee);
+                $amount = $student->monthly_fee ?? 0.00;
                 $studentDueDay = $student->due_day ?? $dueDay;
                 
                 MonthlyFee::create([

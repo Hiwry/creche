@@ -70,10 +70,9 @@
                 </div>
 
                 <div class="form-group">
-                    <label class="form-label">Valor da Mensalidade (R$)</label>
+                    <label class="form-label">Valor da Mensalidade (R$) *</label>
                     <input type="number" name="monthly_fee" class="form-control" step="0.01" min="0" 
-                           value="{{ old('monthly_fee') }}" placeholder="Ex: 500.00">
-                    <small style="color: #6B7280;">Se vazio, usará o valor padrão do sistema.</small>
+                           value="{{ old('monthly_fee') }}" placeholder="Ex: 500.00" required>
                 </div>
 
                 <div class="form-group">

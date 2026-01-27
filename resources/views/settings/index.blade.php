@@ -50,6 +50,7 @@
             </div>
             
             @foreach($financialSettings as $setting)
+            @if($setting->key !== 'default_monthly_fee')
             <div class="form-group">
                 <label class="form-label">{{ $setting->label }}</label>
                 <input type="{{ $setting->type === 'float' ? 'number' : 'text' }}" 
@@ -62,6 +63,7 @@
                 <small style="color: #6B7280;">{{ $setting->description }}</small>
                 @endif
             </div>
+            @endif
             @endforeach
         </div>
     </div>

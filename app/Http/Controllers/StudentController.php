@@ -97,7 +97,7 @@ class StudentController extends Controller
             // Photo
             'photo' => 'nullable|image|max:2048',
             // Individual fields
-            'monthly_fee' => 'nullable|numeric|min:0',
+            'monthly_fee' => 'required|numeric|min:0',
             'due_day' => 'nullable|integer|min:1|max:31',
             'start_time' => 'nullable|date_format:H:i',
             'end_time' => 'nullable|date_format:H:i',
@@ -171,9 +171,7 @@ class StudentController extends Controller
                 ]);
                 
                 // Create monthly fee for current month
-                $class = ClassModel::find($request->class_id);
-                // Use student specific fee if set, otherwise class fee, otherwise default
-                $monthlyFeeAmount = $request->monthly_fee ?? ($class->monthly_fee ?? Setting::getDefaultMonthlyFee());
+                $monthlyFeeAmount = $request->monthly_fee;
                 
                 MonthlyFee::create([
                     'student_id' => $student->id,
@@ -201,7 +199,7 @@ class StudentController extends Controller
             return redirect()->route('students.show', $student)
                 ->with('success', 'Aluno cadastrado com sucesso!');
                 
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             DB::rollBack();
             return back()->withInput()
                 ->with('error', 'Erro ao cadastrar aluno: ' . $e->getMessage());
@@ -253,7 +251,7 @@ class StudentController extends Controller
             'gender' => 'nullable|in:M,F,O',
             'status' => 'required|in:active,inactive,suspended',
             'photo' => 'nullable|image|max:2048',
-            'monthly_fee' => 'nullable|numeric|min:0',
+            'monthly_fee' => 'required|numeric|min:0',
             'due_day' => 'nullable|integer|min:1|max:31',
             'start_time' => 'nullable|date_format:H:i',
             'end_time' => 'nullable|date_format:H:i',
@@ -332,7 +330,7 @@ class StudentController extends Controller
             return redirect()->route('students.show', $student)
                 ->with('success', 'Aluno atualizado com sucesso!');
                 
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             DB::rollBack();
             return back()->withInput()
                 ->with('error', 'Erro ao atualizar aluno: ' . $e->getMessage());
