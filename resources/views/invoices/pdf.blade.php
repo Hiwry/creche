@@ -216,8 +216,8 @@
 
                 if ($logoPath) {
                     try {
-                        // Check file size (limit to 250KB to prevent memory crash)
-                        if (filesize($logoPath) > 250 * 1024) {
+                        // Check file size (limit to 500KB to prevent memory crash)
+                        if (filesize($logoPath) > 500 * 1024) {
                             $logoData = null; // Too big for PDF engine
                         } else {
                             $type = strtolower(pathinfo($logoPath, PATHINFO_EXTENSION));
@@ -240,7 +240,7 @@
             @else
                 <!-- Fallback or Size Warning -->
                 <div style="width: 60px; height: 60px; border: 1px dashed #ccc; display: flex; align-items: center; justify-content: center; color: #ccc; font-size: 8px; text-align: center;">
-                    {{ isset($logoPath) && filesize($logoPath) > 250 * 1024 ? 'Logo Muito Grande' : 'Sem Logo' }}
+                    {{ isset($logoPath) && filesize($logoPath) > 500 * 1024 ? 'Logo Muito Grande (>500KB)' : 'Sem Logo' }}
                 </div>
             @endif
         </div>

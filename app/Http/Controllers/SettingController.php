@@ -53,7 +53,7 @@ class SettingController extends Controller
     public function uploadLogo(Request $request)
     {
         $request->validate([
-            'logo' => 'required|image|max:2048',
+            'logo' => 'required|image|mimes:jpg,jpeg,png,gif|max:500', // Limit to 500KB for PDF stability
         ]);
         
         $path = $request->file('logo')->store('settings', 'public');
