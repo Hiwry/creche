@@ -219,7 +219,7 @@
                         $type = pathinfo($logoPath, PATHINFO_EXTENSION);
                         $data = file_get_contents($logoPath);
                         $logoData = 'data:image/' . $type . ';base64,' . base64_encode($data);
-                    } catch (\Exception $e) {
+                    } catch (\Throwable $e) {
                         $logoData = null;
                     }
                 }
@@ -246,7 +246,7 @@
     <!-- Client Info -->
     <div class="rounded-box" style="padding: 10px;">
         <div class="client-box-header">
-            <strong>Cliente:</strong> {{ $invoice->student->name }}
+            <strong>Cliente:</strong> {{ $invoice->student->name ?? 'Aluno Removido' }}
         </div>
         <table class="client-table">
             <tr>
@@ -260,7 +260,7 @@
             <tr>
                 <td>Local:</td>
                 <td>
-                    @if($invoice->student->guardian)
+                    @if($invoice->student && $invoice->student->guardian)
                         {{ $invoice->student->guardian->city ?? '' }}-{{ $invoice->student->guardian->state ?? '' }}
                     @endif
                 </td>
@@ -268,7 +268,7 @@
             <tr>
                 <td>Telefone:</td>
                 <td>
-                    @if($invoice->student->guardian)
+                    @if($invoice->student && $invoice->student->guardian)
                         {{ $invoice->student->guardian->formatted_phone ?? $invoice->student->guardian->phone ?? '' }}
                     @endif
                 </td>
