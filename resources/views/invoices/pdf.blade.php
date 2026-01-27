@@ -216,14 +216,18 @@
 
                 if ($logoPath) {
                     try {
-                        $type = strtolower(pathinfo($logoPath, PATHINFO_EXTENSION));
-                        
-                        // DomPDF has issues with some formats (like webp). Let's restrict to safe ones.
-                        if (in_array($type, ['jpg', 'jpeg', 'png', 'gif'])) {
-                            // Use absolute path for DomPDF (more memory efficient and stable than base64)
-                            $logoData = 'file://' . str_replace('\\', '/', $logoPath);
+                        // Check file size (limit to 250KB to prevent memory crash)
+                        if (filesize($logoPath) > 250 * 1024) {
+                            $logoData = null; // Too big for PDF engine
                         } else {
-                            $logoData = null;
+                            $type = strtolower(pathinfo($logoPath, PATHINFO_EXTENSION));
+                            
+                            if (in_array($type, ['jpg', 'jpeg', 'png', 'gif'])) {
+                                $data = file_get_contents($logoPath);
+                                $logoData = 'data:image/' . $type . ';base64,' . base64_encode($data);
+                            } else {
+                                $logoData = null;
+                            }
                         }
                     } catch (\Throwable $e) {
                         $logoData = null;
@@ -234,9 +238,9 @@
             @if($logoData)
                 <img src="{{ $logoData }}" style="width: 80px; height: auto;">
             @else
-                <!-- Fallback to empty or default if needed -->
-                <div style="width: 60px; height: 60px; border: 1px dashed #ccc; display: flex; align-items: center; justify-content: center; color: #ccc; font-size: 8px;">
-                    Sem Logo
+                <!-- Fallback or Size Warning -->
+                <div style="width: 60px; height: 60px; border: 1px dashed #ccc; display: flex; align-items: center; justify-content: center; color: #ccc; font-size: 8px; text-align: center;">
+                    {{ isset($logoPath) && filesize($logoPath) > 250 * 1024 ? 'Logo Muito Grande' : 'Sem Logo' }}
                 </div>
             @endif
         </div>
