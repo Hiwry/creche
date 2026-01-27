@@ -75,6 +75,13 @@
                            value="{{ old('monthly_fee') }}" placeholder="Ex: 500.00">
                     <small style="color: #6B7280;">Se vazio, usará o valor padrão do sistema.</small>
                 </div>
+
+                <div class="form-group">
+                    <label class="form-label">Dia de Vencimento</label>
+                    <input type="number" name="due_day" class="form-control" min="1" max="31" 
+                           value="{{ old('due_day', \App\Models\Setting::getPaymentDueDay()) }}">
+                    <small style="color: #6B7280;">Dia do vencimento das mensalidades</small>
+                </div>
             </div>
 
             <div class="grid grid-2">

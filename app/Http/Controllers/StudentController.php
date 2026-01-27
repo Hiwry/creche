@@ -98,6 +98,7 @@ class StudentController extends Controller
             'photo' => 'nullable|image|max:2048',
             // Individual fields
             'monthly_fee' => 'nullable|numeric|min:0',
+            'due_day' => 'nullable|integer|min:1|max:31',
             'start_time' => 'nullable|date_format:H:i',
             'end_time' => 'nullable|date_format:H:i',
         ]);
@@ -140,6 +141,7 @@ class StudentController extends Controller
                 'status' => 'active',
                 'authorized_pickups' => $request->authorized_pickups ? json_decode($request->authorized_pickups, true) : null,
                 'monthly_fee' => $request->monthly_fee,
+                'due_day' => $request->due_day,
                 'start_time' => $request->start_time,
                 'end_time' => $request->end_time,
             ]);
@@ -170,7 +172,8 @@ class StudentController extends Controller
                 
                 // Create monthly fee for current month
                 $class = ClassModel::find($request->class_id);
-                $monthlyFeeAmount = $class->monthly_fee ?? Setting::getDefaultMonthlyFee();
+                // Use student specific fee if set, otherwise class fee, otherwise default
+                $monthlyFeeAmount = $request->monthly_fee ?? ($class->monthly_fee ?? Setting::getDefaultMonthlyFee());
                 
                 MonthlyFee::create([
                     'student_id' => $student->id,
@@ -179,7 +182,7 @@ class StudentController extends Controller
                     'month' => Carbon::now()->month,
                     'amount' => $monthlyFeeAmount,
                     'status' => 'pending',
-                    'due_date' => Carbon::now()->day(Setting::getPaymentDueDay()),
+                    'due_date' => Carbon::now()->day($request->due_day ?? Setting::getPaymentDueDay()),
                 ]);
             }
             
@@ -251,6 +254,7 @@ class StudentController extends Controller
             'status' => 'required|in:active,inactive,suspended',
             'photo' => 'nullable|image|max:2048',
             'monthly_fee' => 'nullable|numeric|min:0',
+            'due_day' => 'nullable|integer|min:1|max:31',
             'start_time' => 'nullable|date_format:H:i',
             'end_time' => 'nullable|date_format:H:i',
         ]);

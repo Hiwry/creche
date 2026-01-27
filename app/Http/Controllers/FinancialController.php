@@ -206,7 +206,8 @@ class FinancialController extends Controller
                     continue;
                 }
                 
-                $amount = $enrollment->classModel->monthly_fee ?? $defaultFee;
+                $amount = $student->monthly_fee ?? ($enrollment->classModel->monthly_fee ?? $defaultFee);
+                $studentDueDay = $student->due_day ?? $dueDay;
                 
                 MonthlyFee::create([
                     'student_id' => $student->id,
@@ -215,7 +216,7 @@ class FinancialController extends Controller
                     'month' => $month,
                     'amount' => $amount,
                     'status' => 'pending',
-                    'due_date' => Carbon::create($year, $month, $dueDay),
+                    'due_date' => Carbon::create($year, $month, $studentDueDay),
                 ]);
                 
                 $created++;

@@ -76,7 +76,7 @@ class InvoiceController extends Controller
             'year' => $year,
             'month' => $month,
             'status' => 'draft',
-            'due_date' => Carbon::create($year, $month, Setting::getPaymentDueDay()),
+            'due_date' => Carbon::create($year, $month, $student->due_day ?? Setting::getPaymentDueDay()),
         ]);
         
         $this->calculateItems($invoice);
@@ -298,7 +298,7 @@ class InvoiceController extends Controller
             'year' => $year,
             'month' => $month,
             'status' => 'draft',
-            'due_date' => Carbon::create($year, $month, Setting::getPaymentDueDay()),
+            'due_date' => Carbon::create($year, $month, $student->due_day ?? Setting::getPaymentDueDay()),
         ]);
         
         // Add monthly fees

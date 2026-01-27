@@ -24,6 +24,7 @@ class Student extends Model
         'status',
         'authorized_pickups',
         'monthly_fee',
+        'due_day',
         'start_time',
         'end_time',
     ];
@@ -32,6 +33,7 @@ class Student extends Model
         'birth_date' => 'date',
         'authorized_pickups' => 'array',
         'monthly_fee' => 'decimal:2',
+        'due_day' => 'integer',
         'start_time' => 'datetime:H:i',
         'end_time' => 'datetime:H:i',
     ];
