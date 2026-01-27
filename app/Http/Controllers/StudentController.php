@@ -276,6 +276,40 @@ class StudentController extends Controller
             
             $student->update($data);
             
+            // Update pending monthly fees if fee or due day changed
+            if ($request->filled('monthly_fee') || $request->filled('due_day')) {
+                $pendingFees = MonthlyFee::where('student_id', $student->id)
+                    ->pending()
+                    ->get();
+                    
+                foreach ($pendingFees as $fee) {
+                    $updateData = [];
+                    
+                    if ($request->filled('monthly_fee')) {
+                        // Only update amount if it was using the old default/class fee
+                        // Or simplifying: Just update to the new student fee as that's the intention
+                        $updateData['amount'] = $request->monthly_fee;
+                    }
+                    
+                    if ($request->filled('due_day')) {
+                        // Keep month and year, update day
+                        // Be careful with months that don't have day 30/31
+                        try {
+                            $newDate = Carbon::create($fee->year, $fee->month, $request->due_day);
+                            $updateData['due_date'] = $newDate;
+                        } catch (\Exception $e) {
+                            // Fallback to last day of month if invalid date (e.g. Feb 30)
+                            $newDate = Carbon::create($fee->year, $fee->month, 1)->endOfMonth();
+                            $updateData['due_date'] = $newDate;
+                        }
+                    }
+                    
+                    if (!empty($updateData)) {
+                        $fee->update($updateData);
+                    }
+                }
+            }
+            
             // Update health record
             $student->health()->updateOrCreate(
                 ['student_id' => $student->id],
