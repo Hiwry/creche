@@ -191,13 +191,14 @@ class InvoiceController extends Controller
                 Setting::getByGroup('invoice')
             );
             
+            /*
             // DEBUG: Return HTML directly to identify if error is in View or PDF generation
             return view('invoices.pdf', [
                 'invoice' => $invoice,
                 'settings' => $settings,
             ]);
+            */
             
-            /*
             $pdf = Pdf::loadView('invoices.pdf', [
                 'invoice' => $invoice,
                 'settings' => $settings,
@@ -206,7 +207,6 @@ class InvoiceController extends Controller
             $filename = "fatura_" . str_replace('/', '_', $invoice->invoice_number) . ".pdf";
             
             return $pdf->download($filename);
-            */
         } catch (\Throwable $e) {
             return response()->make("
                 <h1>Erro ao gerar PDF</h1>
