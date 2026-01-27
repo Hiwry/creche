@@ -259,11 +259,19 @@
             </tr>
             <tr>
                 <td>Local:</td>
-                <td>{{ $invoice->student->guardian->city ?? '' }}-{{ $invoice->student->guardian->state ?? '' }}</td>
+                <td>
+                    @if($invoice->student->guardian)
+                        {{ $invoice->student->guardian->city ?? '' }}-{{ $invoice->student->guardian->state ?? '' }}
+                    @endif
+                </td>
             </tr>
             <tr>
                 <td>Telefone:</td>
-                <td>{{ $invoice->student->guardian->formatted_phone ?? $invoice->student->guardian->phone ?? '' }}</td>
+                <td>
+                    @if($invoice->student->guardian)
+                        {{ $invoice->student->guardian->formatted_phone ?? $invoice->student->guardian->phone ?? '' }}
+                    @endif
+                </td>
             </tr>
         </table>
     </div>
