@@ -220,8 +220,8 @@
                         
                         // DomPDF has issues with some formats (like webp). Let's restrict to safe ones.
                         if (in_array($type, ['jpg', 'jpeg', 'png', 'gif'])) {
-                            $data = file_get_contents($logoPath);
-                            $logoData = 'data:image/' . $type . ';base64,' . base64_encode($data);
+                            // Use absolute path for DomPDF (more memory efficient and stable than base64)
+                            $logoData = 'file://' . str_replace('\\', '/', $logoPath);
                         } else {
                             $logoData = null;
                         }

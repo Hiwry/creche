@@ -182,6 +182,9 @@ class InvoiceController extends Controller
     
     public function downloadPdf(Invoice $invoice)
     {
+        ini_set('memory_limit', '256M');
+        set_time_limit(300);
+
         try {
             $invoice->load(['student.guardian', 'items']);
             
