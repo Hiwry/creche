@@ -226,7 +226,8 @@
             @endphp
 
             @if($logoData)
-                <img src="{{ $logoData }}" style="max-width: 80px; max-height: 80px;">
+                <!-- <img src="{{ $logoData }}" style="max-width: 80px; max-height: 80px;"> -->
+                <div>LOGO REMOVIDO PARA TESTE</div>
             @else
                 <!-- Fallback to empty or default if needed -->
                 <div style="width: 60px; height: 60px; border: 1px dashed #ccc; display: flex; align-items: center; justify-content: center; color: #ccc; font-size: 8px;">
