@@ -50,7 +50,7 @@
             </div>
             
             @foreach($financialSettings as $setting)
-            @if($setting->key !== 'default_monthly_fee')
+            @if(in_array($setting->key, ['extra_hour_rate', 'extra_hour_tolerance']))
             <div class="form-group">
                 <label class="form-label">{{ $setting->label }}</label>
                 <input type="{{ $setting->type === 'float' ? 'number' : 'text' }}" 

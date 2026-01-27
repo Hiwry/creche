@@ -71,10 +71,10 @@
                 </div>
 
                 <div class="form-group">
-                    <label class="form-label">Dia de Vencimento</label>
+                    <label class="form-label">Dia de Vencimento *</label>
                     <input type="number" name="due_day" class="form-control" min="1" max="31" 
-                           value="{{ old('due_day', $student->due_day ?? \App\Models\Setting::getPaymentDueDay()) }}">
-                    <small style="color: #6B7280;">Dia do vencimento das mensalidades</small>
+                           value="{{ old('due_day', $student->due_day) }}" placeholder="Ex: 10" required>
+                    <small style="color: #6B7280;">Dia do mês para vencimento da fatura</small>
                 </div>
             </div>
 

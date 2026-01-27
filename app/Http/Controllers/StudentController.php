@@ -98,7 +98,7 @@ class StudentController extends Controller
             'photo' => 'nullable|image|max:2048',
             // Individual fields
             'monthly_fee' => 'required|numeric|min:0',
-            'due_day' => 'nullable|integer|min:1|max:31',
+            'due_day' => 'required|integer|min:1|max:31',
             'start_time' => 'nullable|date_format:H:i',
             'end_time' => 'nullable|date_format:H:i',
         ]);
@@ -180,7 +180,7 @@ class StudentController extends Controller
                     'month' => Carbon::now()->month,
                     'amount' => $monthlyFeeAmount,
                     'status' => 'pending',
-                    'due_date' => Carbon::now()->day($request->due_day ?? Setting::getPaymentDueDay()),
+                    'due_date' => Carbon::now()->day($request->due_day),
                 ]);
             }
             
@@ -252,7 +252,7 @@ class StudentController extends Controller
             'status' => 'required|in:active,inactive,suspended',
             'photo' => 'nullable|image|max:2048',
             'monthly_fee' => 'required|numeric|min:0',
-            'due_day' => 'nullable|integer|min:1|max:31',
+            'due_day' => 'required|integer|min:1|max:31',
             'start_time' => 'nullable|date_format:H:i',
             'end_time' => 'nullable|date_format:H:i',
         ]);
