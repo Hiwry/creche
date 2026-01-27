@@ -180,7 +180,7 @@ class StudentController extends Controller
                     'month' => Carbon::now()->month,
                     'amount' => $monthlyFeeAmount,
                     'status' => 'pending',
-                    'due_date' => Carbon::now()->day($request->due_day),
+                    'due_date' => Carbon::now()->day((int)$request->due_day),
                 ]);
             }
             
@@ -293,7 +293,7 @@ class StudentController extends Controller
                         // Keep month and year, update day
                         // Be careful with months that don't have day 30/31
                         try {
-                            $newDate = Carbon::create($fee->year, $fee->month, $request->due_day);
+                            $newDate = Carbon::create($fee->year, $fee->month, (int)$request->due_day);
                             $updateData['due_date'] = $newDate;
                         } catch (\Exception $e) {
                             // Fallback to last day of month if invalid date (e.g. Feb 30)
