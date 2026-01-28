@@ -623,28 +623,98 @@ textarea.form-control {
 /* Pagination */
 .pagination {
     display: flex;
+    flex-direction: column;
     align-items: center;
-    gap: 5px;
+    gap: 15px;
     justify-content: center;
-    margin-top: 20px;
+    margin-top: 30px;
+    padding: 20px 0;
 }
 
-.pagination a, .pagination span {
-    padding: 8px 12px;
+.pagination nav {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 15px;
+}
+
+.pagination .flex.justify-between {
+    display: none !important;
+}
+
+.pagination svg {
+    width: 1.25rem;
+    height: 1.25rem;
+}
+
+.pagination .hidden.sm\:flex-1.sm\:flex.sm\:items-center.sm\:justify-between {
+    display: flex !important;
+    flex-direction: column;
+    align-items: center;
+    gap: 15px;
+}
+
+.pagination .relative.z-0.inline-flex.shadow-sm.rounded-md {
+    display: flex;
+    gap: 5px;
+    box-shadow: none;
+}
+
+.pagination .relative.inline-flex.items-center {
+    padding: 8px 14px;
+    border: 1px solid var(--border-color);
+    background: var(--bg-white);
     border-radius: var(--border-radius-sm);
-    font-size: 0.9rem;
-    text-decoration: none;
     color: var(--text-gray);
+    font-size: 0.9rem;
+    font-weight: 500;
+    transition: all 0.2s ease;
 }
 
-.pagination a:hover {
+.pagination .relative.inline-flex.items-center:hover {
     background: var(--bg-main);
+    color: var(--text-dark);
+    border-color: var(--text-light);
+}
+
+.pagination .z-10.bg-indigo-50 {
+    background: var(--primary-purple) !important;
+    color: white !important;
+    border-color: var(--primary-purple) !important;
+}
+
+.pagination span.relative.inline-flex.items-center.px-4.py-2 {
+    background: var(--primary-purple);
+    color: white;
+    border-color: var(--primary-purple);
+}
+
+.pagination p.text-sm.text-gray-700.leading-5 {
+    color: var(--text-gray);
+    font-size: 0.85rem;
+}
+
+.pagination .font-medium {
+    font-weight: 600;
     color: var(--text-dark);
 }
 
-.pagination .active span {
-    background: var(--primary-purple);
+/* Bootstrap class overrides if using useBootstrapFour() */
+.pagination .page-item.active .page-link {
+    background-color: var(--primary-purple);
+    border-color: var(--primary-purple);
     color: white;
+}
+
+.pagination .page-link {
+    color: var(--text-gray);
+    padding: 8px 15px;
+}
+
+.pagination .page-link:hover {
+    background-color: var(--bg-main);
+    color: var(--text-dark);
 }
 
 /* Grid Layout */
