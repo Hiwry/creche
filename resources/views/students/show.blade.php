@@ -36,6 +36,14 @@
                 @if($student->age)
                 <p style="color: #6B7280;">{{ $student->age }} anos</p>
                 @endif
+                @if($student->monthly_fee)
+                <p style="color: #10B981; font-weight: 600; font-size: 1.1rem; margin-top: 5px;">
+                    R$ {{ number_format($student->monthly_fee, 2, ',', '.') }}
+                    <span style="font-size: 0.8rem; font-weight: 400; color: #6B7280;">
+                        /mês (Vencimento dia {{ $student->due_day ?? Setting::getPaymentDueDay() }})
+                    </span>
+                </p>
+                @endif
                 @if($student->birth_date)
                 <p style="color: #6B7280; font-size: 0.9rem;">
                     Nascimento: {{ $student->birth_date->format('d/m/Y') }}
