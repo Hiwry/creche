@@ -112,7 +112,26 @@ class InvoiceController extends Controller
      */
     private function calculateItems(Invoice $invoice)
     {
-        // Add monthly fees
+        // Add monthly fees (ensure they exist first if student has a fee set)
+        $student = $invoice->student;
+        if ($student && $student->monthly_fee > 0) {
+            foreach ($student->activeEnrollments as $enrollment) {
+                MonthlyFee::firstOrCreate(
+                    [
+                        'student_id' => $student->id,
+                        'class_id' => $enrollment->class_id,
+                        'year' => $invoice->year,
+                        'month' => $invoice->month,
+                    ],
+                    [
+                        'amount' => $student->monthly_fee,
+                        'status' => 'pending',
+                        'due_date' => Carbon::create($invoice->year, $invoice->month, $student->due_day ?? Setting::getPaymentDueDay()),
+                    ]
+                );
+            }
+        }
+
         $monthlyFees = MonthlyFee::where('student_id', $invoice->student_id)
             ->forMonth($invoice->year, $invoice->month)
             ->get();
@@ -294,7 +313,8 @@ class InvoiceController extends Controller
                 || AttendanceLog::where('student_id', $student->id)
                     ->forMonth($year, $month)
                     ->where('extra_charge', '>', 0)
-                    ->exists();
+                    ->exists()
+                || ($student->monthly_fee > 0); // Include if they have a base fee set
                     
             if (!$hasItems) {
                 $skipped++;
@@ -319,14 +339,32 @@ class InvoiceController extends Controller
             'due_date' => Carbon::create($year, $month, $student->due_day ?? Setting::getPaymentDueDay()),
         ]);
         
-        // Add monthly fees
+        // Add monthly fees (ensure they exist first if student has a fee set)
+        if ($student->monthly_fee > 0) {
+            foreach ($student->activeEnrollments as $enrollment) {
+                MonthlyFee::firstOrCreate(
+                    [
+                        'student_id' => $student->id,
+                        'class_id' => $enrollment->class_id,
+                        'year' => $year,
+                        'month' => $month,
+                    ],
+                    [
+                        'amount' => $student->monthly_fee,
+                        'status' => 'pending',
+                        'due_date' => Carbon::create($year, $month, $student->due_day ?? Setting::getPaymentDueDay()),
+                    ]
+                );
+            }
+        }
+
         $monthlyFees = MonthlyFee::where('student_id', $student->id)
             ->forMonth($year, $month)
             ->pending()
             ->get();
             
         foreach ($monthlyFees as $fee) {
-            $invoice->addItem('monthly_fee', "Mensalidade {$fee->reference}", 1, $fee->remaining_amount);
+            $invoice->addItem('monthly_fee', "Mensalidade {$fee->reference}" . ($fee->classModel ? " - {$fee->classModel->name}" : ''), 1, $fee->remaining_amount);
         }
         
         // Add material fee
