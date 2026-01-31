@@ -20,29 +20,25 @@ class InvoiceController extends Controller
      */
     public function index(Request $request)
     {
-        $query = Invoice::with('student');
-        
+        $params = [];
+
         if ($request->filled('year')) {
-            $query->where('year', $request->year);
+            $params['year'] = $request->year;
         }
-        
+
         if ($request->filled('month')) {
-            $query->where('month', $request->month);
+            $params['month'] = $request->month;
         }
-        
+
         if ($request->filled('status')) {
-            $query->where('status', $request->status);
+            $params['status'] = $request->status;
         }
-        
+
         if ($request->filled('search')) {
-            $query->whereHas('student', function ($q) use ($request) {
-                $q->where('name', 'like', '%' . $request->search . '%');
-            });
+            $params['search'] = $request->search;
         }
-        
-        $invoices = $query->latest()->paginate(20);
-        
-        return view('invoices.index', compact('invoices'));
+
+        return redirect()->route('financial.index', $params);
     }
     
     /**
@@ -76,7 +72,7 @@ class InvoiceController extends Controller
             'year' => $year,
             'month' => $month,
             'status' => 'draft',
-            'due_date' => Carbon::create($year, $month, $student->due_day ?? Setting::getPaymentDueDay()),
+            'due_date' => $this->makeDueDate($year, $month, (int) ($student->due_day ?? Setting::getPaymentDueDay())),
         ]);
         
         $this->calculateItems($invoice);
@@ -126,7 +122,7 @@ class InvoiceController extends Controller
                     [
                         'amount' => $student->monthly_fee,
                         'status' => 'pending',
-                        'due_date' => Carbon::create($invoice->year, $invoice->month, $student->due_day ?? Setting::getPaymentDueDay()),
+                        'due_date' => $this->makeDueDate($invoice->year, $invoice->month, (int) ($student->due_day ?? Setting::getPaymentDueDay())),
                     ]
                 );
             }
@@ -262,6 +258,23 @@ class InvoiceController extends Controller
         
         return back()->with('success', 'Fatura marcada como paga!');
     }
+
+    /**
+     * Remove paid status from invoice.
+     */
+    public function markAsUnpaid(Invoice $invoice)
+    {
+        if ($invoice->status !== 'paid') {
+            return back()->with('error', 'A fatura não está marcada como paga.');
+        }
+
+        $invoice->update([
+            'status' => 'sent',
+            'paid_at' => null,
+        ]);
+
+        return back()->with('success', 'Pagamento removido da fatura.');
+    }
     
     /**
      * Cancel invoice.
@@ -336,7 +349,7 @@ class InvoiceController extends Controller
             'year' => $year,
             'month' => $month,
             'status' => 'draft',
-            'due_date' => Carbon::create($year, $month, $student->due_day ?? Setting::getPaymentDueDay()),
+            'due_date' => $this->makeDueDate($year, $month, (int) ($student->due_day ?? Setting::getPaymentDueDay())),
         ]);
         
         // Add monthly fees (ensure they exist first if student has a fee set)
@@ -352,7 +365,7 @@ class InvoiceController extends Controller
                     [
                         'amount' => $student->monthly_fee,
                         'status' => 'pending',
-                        'due_date' => Carbon::create($year, $month, $student->due_day ?? Setting::getPaymentDueDay()),
+                        'due_date' => $this->makeDueDate($year, $month, (int) ($student->due_day ?? Setting::getPaymentDueDay())),
                     ]
                 );
             }
@@ -399,5 +412,13 @@ class InvoiceController extends Controller
         }
         
         return $invoice;
+    }
+
+    private function makeDueDate(int $year, int $month, int $day): Carbon
+    {
+        $base = Carbon::create($year, $month, 1);
+        $day = max(1, min($day, $base->daysInMonth));
+
+        return Carbon::create($year, $month, $day);
     }
 }

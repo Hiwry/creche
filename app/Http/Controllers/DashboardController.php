@@ -13,37 +13,51 @@ use Carbon\Carbon;
 
 class DashboardController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
-        $currentMonth = Carbon::now()->month;
-        $currentYear = Carbon::now()->year;
+        [$startDate, $endDate, $period, $periodLabel] = $this->resolvePeriod($request);
         
         // Active students count
         $activeStudents = Student::active()->count();
         
-        // Monthly fees stats for current month
-        $monthlyFeesQuery = MonthlyFee::forMonth($currentYear, $currentMonth);
+        // Monthly fees stats for selected period (by due_date)
+        $monthlyFeesQuery = MonthlyFee::whereBetween('due_date', [
+            $startDate->toDateString(),
+            $endDate->toDateString(),
+        ]);
         $paidFees = (clone $monthlyFeesQuery)->where('status', 'paid')->count();
         $totalFees = $monthlyFeesQuery->count();
-        $pendingFees = Student::active()
-            ->withPendingFees()
-            ->count();
+        $pendingFees = MonthlyFee::whereBetween('due_date', [
+                $startDate->toDateString(),
+                $endDate->toDateString(),
+            ])
+            ->whereIn('status', ['pending', 'partial', 'overdue'])
+            ->whereHas('student', function ($q) {
+                $q->where('status', 'active');
+            })
+            ->distinct('student_id')
+            ->count('student_id');
         
-        // Monthly revenue (paid this month)
-        $monthlyRevenue = Payment::whereMonth('payment_date', $currentMonth)
-            ->whereYear('payment_date', $currentYear)
+        // Revenue for selected period
+        $monthlyRevenue = Payment::whereBetween('payment_date', [
+                $startDate->toDateString(),
+                $endDate->toDateString(),
+            ])
             ->sum('amount');
         
-        // Extra hours this month
-        $extraHoursData = AttendanceLog::forMonth($currentYear, $currentMonth)
+        // Extra hours for selected period
+        $extraHoursData = AttendanceLog::whereBetween('date', [
+                $startDate->toDateString(),
+                $endDate->toDateString(),
+            ])
             ->selectRaw('SUM(extra_minutes) as total_minutes, SUM(extra_charge) as total_charge')
             ->first();
         
-        // Payment status for chart (last 6 months)
-        $paymentStatusData = $this->getPaymentStatusData();
+        // Payment status for chart (selected period)
+        $paymentStatusData = $this->getPaymentStatusData($startDate, $endDate);
         
-        // Extra hours chart data (last 7 days)
-        $extraHoursChartData = $this->getExtraHoursChartData();
+        // Extra hours chart data (selected period)
+        $extraHoursChartData = $this->getExtraHoursChartData($startDate, $endDate);
         
         // Today's schedule
         $todaySchedule = ClassModel::active()
@@ -54,7 +68,11 @@ class DashboardController extends Controller
         
         // Recent activities/notices
         $recentPayments = Payment::with('student')
-            ->latest()
+            ->whereBetween('payment_date', [
+                $startDate->toDateString(),
+                $endDate->toDateString(),
+            ])
+            ->latest('payment_date')
             ->limit(5)
             ->get();
         
@@ -68,16 +86,21 @@ class DashboardController extends Controller
             'paymentStatusData',
             'extraHoursChartData',
             'todaySchedule',
-            'recentPayments'
+            'recentPayments',
+            'startDate',
+            'endDate',
+            'period',
+            'periodLabel'
         ));
     }
     
-    private function getPaymentStatusData(): array
+    private function getPaymentStatusData(Carbon $startDate, Carbon $endDate): array
     {
-        $currentYear = Carbon::now()->year;
-        $currentMonth = Carbon::now()->month;
-        
-        $fees = MonthlyFee::forMonth($currentYear, $currentMonth)->get();
+        $fees = MonthlyFee::whereBetween('due_date', [
+                $startDate->toDateString(),
+                $endDate->toDateString(),
+            ])
+            ->get();
         
         $paid = $fees->where('status', 'paid')->count();
         $pending = $fees->whereIn('status', ['pending', 'partial', 'overdue'])->count();
@@ -90,28 +113,123 @@ class DashboardController extends Controller
         ];
     }
     
-    private function getExtraHoursChartData(): array
+    private function getExtraHoursChartData(Carbon $startDate, Carbon $endDate): array
     {
         $data = [];
-        
-        for ($i = 6; $i >= 0; $i--) {
-            $date = Carbon::now()->subDays($i);
-            $minutes = AttendanceLog::forDate($date->toDateString())
-                ->sum('extra_minutes');
-            
-            $daysMap = [
-                'Sun' => 'Dom', 'Mon' => 'Seg', 'Tue' => 'Ter', 'Wed' => 'Qua', 
-                'Thu' => 'Qui', 'Fri' => 'Sex', 'Sat' => 'Sáb'
-            ];
-            
-            $data[] = [
-                'day' => $daysMap[$date->format('D')],
-                'date' => $date->format('d/m'),
-                'hours' => round($minutes / 60, 1),
-                'minutes' => $minutes,
-            ];
+        $days = $startDate->diffInDays($endDate) + 1;
+
+        $daysMap = [
+            'Sun' => 'Dom', 'Mon' => 'Seg', 'Tue' => 'Ter', 'Wed' => 'Qua',
+            'Thu' => 'Qui', 'Fri' => 'Sex', 'Sat' => 'Sáb'
+        ];
+
+        if ($days <= 14) {
+            $cursor = $startDate->copy();
+            while ($cursor->lte($endDate)) {
+                $minutes = AttendanceLog::whereDate('date', $cursor->toDateString())
+                    ->sum('extra_minutes');
+
+                $data[] = [
+                    'label' => $daysMap[$cursor->format('D')],
+                    'hours' => round($minutes / 60, 1),
+                    'minutes' => $minutes,
+                ];
+
+                $cursor->addDay();
+            }
+        } elseif ($days <= 90) {
+            $cursor = $startDate->copy();
+            while ($cursor->lte($endDate)) {
+                $weekStart = $cursor->copy();
+                $weekEnd = $cursor->copy()->addDays(6);
+                if ($weekEnd->gt($endDate)) {
+                    $weekEnd = $endDate->copy();
+                }
+
+                $minutes = AttendanceLog::whereBetween('date', [
+                        $weekStart->toDateString(),
+                        $weekEnd->toDateString(),
+                    ])
+                    ->sum('extra_minutes');
+
+                $data[] = [
+                    'label' => $weekStart->format('d/m') . '-' . $weekEnd->format('d/m'),
+                    'hours' => round($minutes / 60, 1),
+                    'minutes' => $minutes,
+                ];
+
+                $cursor = $weekEnd->addDay();
+            }
+        } else {
+            $cursor = $startDate->copy()->startOfMonth();
+            $endMonth = $endDate->copy()->startOfMonth();
+            while ($cursor->lte($endMonth)) {
+                $monthStart = $cursor->copy();
+                $monthEnd = $cursor->copy()->endOfMonth();
+                if ($monthEnd->gt($endDate)) {
+                    $monthEnd = $endDate->copy();
+                }
+
+                $minutes = AttendanceLog::whereBetween('date', [
+                        $monthStart->toDateString(),
+                        $monthEnd->toDateString(),
+                    ])
+                    ->sum('extra_minutes');
+
+                $data[] = [
+                    'label' => \App\Models\MonthlyFee::MONTHS[$monthStart->month] ?? $monthStart->format('m/Y'),
+                    'hours' => round($minutes / 60, 1),
+                    'minutes' => $minutes,
+                ];
+
+                $cursor->addMonth();
+            }
         }
-        
+
         return $data;
+    }
+
+    private function resolvePeriod(Request $request): array
+    {
+        $period = $request->input('period', 'this_month');
+
+        if ($period === 'custom') {
+            if ($request->filled('start_date') && $request->filled('end_date')) {
+                $startDate = Carbon::parse($request->start_date)->startOfDay();
+                $endDate = Carbon::parse($request->end_date)->endOfDay();
+            } else {
+                $startDate = Carbon::now()->startOfMonth();
+                $endDate = Carbon::now()->endOfMonth();
+            }
+        } else {
+            switch ($period) {
+                case 'today':
+                    $startDate = Carbon::today()->startOfDay();
+                    $endDate = Carbon::today()->endOfDay();
+                    break;
+                case 'last_7_days':
+                    $startDate = Carbon::now()->subDays(6)->startOfDay();
+                    $endDate = Carbon::now()->endOfDay();
+                    break;
+                case 'last_month':
+                    $startDate = Carbon::now()->subMonthNoOverflow()->startOfMonth();
+                    $endDate = Carbon::now()->subMonthNoOverflow()->endOfMonth();
+                    break;
+                case 'this_month':
+                default:
+                    $startDate = Carbon::now()->startOfMonth();
+                    $endDate = Carbon::now()->endOfMonth();
+                    $period = 'this_month';
+                    break;
+            }
+        }
+
+        if ($endDate->lt($startDate)) {
+            [$startDate, $endDate] = [$endDate, $startDate];
+        }
+
+        $periodLabel = $startDate->format('d/m/Y') . ' - ' . $endDate->format('d/m/Y');
+
+        return [$startDate, $endDate, $period, $periodLabel];
     }
 }

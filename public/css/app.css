@@ -620,6 +620,46 @@ textarea.form-control {
     color: var(--text-gray);
 }
 
+/* Tabs */
+.tabs {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 20px;
+}
+
+.tab-link {
+    padding: 8px 16px;
+    border-radius: var(--border-radius-sm);
+    border: 1px solid var(--border-color);
+    color: var(--text-dark);
+    text-decoration: none;
+    font-weight: 500;
+    background: var(--bg-white);
+    transition: all 0.2s ease;
+}
+
+.tab-link:hover {
+    background: var(--bg-main);
+}
+
+.tab-link.active {
+    background: var(--primary-purple);
+    color: white;
+    border-color: var(--primary-purple);
+}
+
+/* Table links */
+.table-link {
+    color: var(--text-dark);
+    font-weight: 500;
+    text-decoration: none;
+}
+
+.table-link:hover {
+    color: var(--primary-purple);
+    text-decoration: underline;
+}
+
 /* Pagination */
 .pagination {
     display: flex;
@@ -637,6 +677,21 @@ textarea.form-control {
     flex-direction: column;
     align-items: center;
     gap: 15px;
+}
+
+.pagination ul.pagination {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+.pagination ul.pagination li {
+    list-style: none;
 }
 
 .pagination .flex.justify-between {

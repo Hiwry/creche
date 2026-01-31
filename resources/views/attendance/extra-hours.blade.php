@@ -69,6 +69,47 @@
 
 <!-- By Student -->
 @if(isset($selectedStudent))
+@php
+    $defaultDate = \Carbon\Carbon::create($year, $month, 1);
+    if ($year == date('Y') && $month == date('n')) {
+        $defaultDate = \Carbon\Carbon::today();
+    }
+@endphp
+<div class="card" style="margin-bottom: 20px;">
+    <div class="card-header">
+        <h3 class="card-title">Adicionar Entrada/Saída</h3>
+    </div>
+    <form action="{{ route('attendance.extra-hours.store') }}" method="POST" class="filter-form" style="padding: 20px;">
+        @csrf
+        <input type="hidden" name="student_id" value="{{ $selectedStudent->id }}">
+        <input type="hidden" name="year" value="{{ $year }}">
+        <input type="hidden" name="month" value="{{ $month }}">
+
+        <input type="date" name="date" class="form-control" value="{{ old('date', $defaultDate->format('Y-m-d')) }}">
+        <input type="time" name="check_in" class="form-control" value="{{ old('check_in') }}" placeholder="Entrada">
+        <input type="time" name="check_out" class="form-control" value="{{ old('check_out') }}" placeholder="Saída">
+
+        <select name="class_id" class="form-control">
+            <option value="">Usar horário do aluno (padrão)</option>
+            @foreach($selectedStudent->activeEnrollments as $enrollment)
+                @if($enrollment->classModel)
+                <option value="{{ $enrollment->classModel->id }}">
+                    {{ $enrollment->classModel->name }}
+                    ({{ \Carbon\Carbon::parse($enrollment->classModel->start_time)->format('H:i') }}-{{ \Carbon\Carbon::parse($enrollment->classModel->end_time)->format('H:i') }})
+                </option>
+                @endif
+            @endforeach
+        </select>
+
+        <button type="submit" class="btn btn-primary">
+            <i class="fas fa-plus"></i> Calcular Horas Extras
+        </button>
+    </form>
+    <div style="padding: 0 20px 20px; font-size: 0.85rem; color: #6B7280;">
+        Valor/hora: R$ {{ number_format($extraHourRate ?? 0, 2, ',', '.') }} · Tolerância: {{ $extraHourTolerance ?? 0 }} min
+        <span style="display: block; margin-top: 4px;">O cálculo usa o horário de entrada/saída do aluno. Se não houver, usa a turma selecionada.</span>
+    </div>
+</div>
 <div class="card">
     <div class="card-header">
         <h3 class="card-title">Detalhes de Presença - {{ $selectedStudent->name }}</h3>
@@ -150,7 +191,15 @@
                 @forelse($byStudent as $data)
                 <tr>
                     <td>
-                        <div style="font-weight: 500;">{{ $data['student']->name }}</div>
+                        @if($data['student'] && !$data['student']->trashed())
+                            <a href="{{ route('students.show', $data['student']) }}" class="table-link">
+                                {{ $data['student']->name }}
+                            </a>
+                        @elseif($data['student'])
+                            <span style="color: #9CA3AF;">{{ $data['student']->name }} (removido)</span>
+                        @else
+                            <span style="color: #9CA3AF;">Aluno removido</span>
+                        @endif
                     </td>
                     <td>{{ $data['days'] }} dia(s)</td>
                     <td>{{ $data['total_minutes'] }} min</td>

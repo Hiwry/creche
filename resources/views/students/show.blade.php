@@ -40,7 +40,7 @@
                 <p style="color: #10B981; font-weight: 600; font-size: 1.1rem; margin-top: 5px;">
                     R$ {{ number_format($student->monthly_fee, 2, ',', '.') }}
                     <span style="font-size: 0.8rem; font-weight: 400; color: #6B7280;">
-                        /mês (Vencimento dia {{ $student->due_day ?? Setting::getPaymentDueDay() }})
+                    /mês (Vencimento dia {{ $student->due_day ?? \App\Models\Setting::getPaymentDueDay() }})
                     </span>
                 </p>
                 @endif
@@ -125,8 +125,8 @@
 <div class="card" style="margin-top: 20px;">
     <div class="card-header">
         <h3 class="card-title">
-            <i class="fas fa-dollar-sign" style="color: #F59E0B; margin-right: 10px;"></i>
-            Mensalidades Recentes
+            <i class="fas fa-file-invoice" style="color: #F59E0B; margin-right: 10px;"></i>
+            Faturas Recentes
         </h3>
         <a href="{{ route('financial.index', ['search' => $student->name]) }}" class="btn btn-secondary btn-sm">
             Ver Todas
@@ -139,24 +139,24 @@
                 <tr>
                     <th>Referência</th>
                     <th>Valor</th>
-                    <th>Pago</th>
                     <th>Status</th>
+                    <th>Vencimento</th>
                 </tr>
             </thead>
             <tbody>
-                @forelse($student->monthlyFees->take(6) as $fee)
+                @forelse($student->invoices->take(6) as $invoice)
                 <tr>
-                    <td>{{ $fee->reference }}</td>
-                    <td>R$ {{ number_format($fee->net_amount, 2, ',', '.') }}</td>
-                    <td>R$ {{ number_format($fee->amount_paid, 2, ',', '.') }}</td>
+                    <td>{{ $invoice->reference }}</td>
+                    <td>{{ $invoice->formatted_total }}</td>
                     <td>
-                        <span class="badge badge-{{ $fee->status_color }}">{{ $fee->status_label }}</span>
+                        <span class="badge badge-{{ $invoice->status_color }}">{{ $invoice->status_label }}</span>
                     </td>
+                    <td>{{ $invoice->due_date ? $invoice->due_date->format('d/m/Y') : '-' }}</td>
                 </tr>
                 @empty
                 <tr>
                     <td colspan="4" style="text-align: center; color: #9CA3AF;">
-                        Nenhuma mensalidade registrada
+                        Nenhuma fatura registrada
                     </td>
                 </tr>
                 @endforelse
@@ -177,15 +177,15 @@
         <div class="grid grid-3" style="margin-bottom: 20px;">
             <div>
                 <span style="font-size: 0.85rem; color: #6B7280;">Tipo Sanguíneo:</span>
-                <div style="font-weight: 500;">{{ $student->health->blood_type ?? '-' }}</div>
+                <div style="font-weight: 500;">{{ $student->health?->blood_type ?? '-' }}</div>
             </div>
             <div>
                 <span style="font-size: 0.85rem; color: #6B7280;">Plano de Saúde:</span>
-                <div style="font-weight: 500;">{{ $student->health->health_plan_name ?? 'Não informado' }}</div>
+                <div style="font-weight: 500;">{{ $student->health?->health_plan_name ?? 'Não informado' }}</div>
             </div>
             <div>
                 <span style="font-size: 0.85rem; color: #6B7280;">Nº do Plano:</span>
-                <div style="font-weight: 500;">{{ $student->health->health_plan_number ?? '-' }}</div>
+                <div style="font-weight: 500;">{{ $student->health?->health_plan_number ?? '-' }}</div>
             </div>
         </div>
 
@@ -214,7 +214,10 @@
 
         <div style="margin-top: 20px;">
             <span style="font-size: 0.85rem; color: #6B7280;">Contato de Emergência:</span>
-            <div style="font-weight: 500;">{{ $student->health->emergency_contact_name ?? '-' }} {{ $student->health->emergency_contact_phone ? ' - ' . $student->health->emergency_contact_phone : '' }}</div>
+            <div style="font-weight: 500;">
+                {{ $student->health?->emergency_contact_name ?? '-' }}
+                {{ $student->health?->emergency_contact_phone ? ' - ' . $student->health->emergency_contact_phone : '' }}
+            </div>
         </div>
     </div>
 

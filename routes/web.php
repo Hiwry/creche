@@ -47,6 +47,7 @@ Route::middleware(['auth'])->group(function () {
         Route::get('/payment-form', [FinancialController::class, 'showPaymentForm'])->name('payment-form');
         Route::post('/payments', [FinancialController::class, 'storePayment'])->name('store-payment');
         Route::post('/mark-paid/{type}/{id}', [FinancialController::class, 'markAsPaid'])->name('mark-paid');
+        Route::post('/unmark-paid/{type}/{id}', [FinancialController::class, 'markAsUnpaid'])->name('unmark-paid');
         Route::post('/generate-monthly-fees', [FinancialController::class, 'generateMonthlyFees'])->name('generate-monthly-fees');
     });
     
@@ -57,6 +58,7 @@ Route::middleware(['auth'])->group(function () {
         Route::post('/check-out', [AttendanceController::class, 'checkOut'])->name('check-out');
         Route::post('/quick', [AttendanceController::class, 'quickRegister'])->name('quick');
         Route::get('/extra-hours', [AttendanceController::class, 'extraHoursReport'])->name('extra-hours');
+        Route::post('/extra-hours', [AttendanceController::class, 'storeExtraHours'])->name('extra-hours.store');
         Route::get('/{log}/edit', [AttendanceController::class, 'edit'])->name('edit');
         Route::put('/{log}', [AttendanceController::class, 'update'])->name('update');
         Route::delete('/{log}', [AttendanceController::class, 'destroy'])->name('destroy');
@@ -71,6 +73,7 @@ Route::middleware(['auth'])->group(function () {
         Route::get('/{invoice}/pdf', [InvoiceController::class, 'downloadPdf'])->name('pdf');
         Route::post('/{invoice}/send', [InvoiceController::class, 'markAsSent'])->name('send');
         Route::post('/{invoice}/paid', [InvoiceController::class, 'markAsPaid'])->name('paid');
+        Route::post('/{invoice}/unpaid', [InvoiceController::class, 'markAsUnpaid'])->name('unpaid');
         Route::post('/{invoice}/cancel', [InvoiceController::class, 'cancel'])->name('cancel');
         Route::post('/{invoice}/recalculate', [InvoiceController::class, 'recalculate'])->name('recalculate');
     });

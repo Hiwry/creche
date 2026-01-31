@@ -10,6 +10,7 @@ use App\Models\ClassModel;
 use App\Models\Setting;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\DB;
 use Carbon\Carbon;
 
 class FinancialController extends Controller
@@ -20,34 +21,53 @@ class FinancialController extends Controller
     public function index(Request $request)
     {
         $year = $request->input('year', Carbon::now()->year);
-        $month = $request->input('month', Carbon::now()->month);
-        
-        // Monthly fees for selected month
-        $monthlyFeesQuery = MonthlyFee::with(['student', 'classModel'])
-            ->forMonth($year, $month);
-            
-        if ($request->filled('status')) {
-            $monthlyFeesQuery->where('status', $request->status);
+        $month = $request->input('month');
+        $status = $request->input('status');
+        $search = $request->input('search');
+
+        $invoicesQuery = \App\Models\Invoice::with(['student.activeEnrollments.classModel']);
+
+        if ($year) {
+            $invoicesQuery->where('year', $year);
         }
-        
-        if ($request->filled('search')) {
-            $monthlyFeesQuery->whereHas('student', function ($q) use ($request) {
-                $q->where('name', 'like', '%' . $request->search . '%');
+
+        if ($month) {
+            $invoicesQuery->where('month', $month);
+        }
+
+        if ($status) {
+            $invoicesQuery->where('status', $status);
+        }
+
+        if ($search) {
+            $invoicesQuery->whereHas('student', function ($q) use ($search) {
+                $q->where('name', 'like', '%' . $search . '%');
             });
         }
-        
-        $monthlyFees = $monthlyFeesQuery->orderBy('status')->paginate(20);
-        
-        // Summary stats
+
+        $summaryQuery = clone $invoicesQuery;
+        $totalCount = $summaryQuery->count();
+        $totalValue = (clone $invoicesQuery)->sum('total');
+        $paidValue = (clone $invoicesQuery)->where('status', 'paid')->sum('total');
+        $pendingValue = (clone $invoicesQuery)->whereIn('status', ['draft', 'sent', 'overdue'])->sum('total');
+
         $summary = [
-            'total' => MonthlyFee::forMonth($year, $month)->sum('amount'),
-            'paid' => MonthlyFee::forMonth($year, $month)->where('status', 'paid')->sum('amount_paid'),
-            'pending' => MonthlyFee::forMonth($year, $month)->pending()->sum('amount'),
-            'paid_count' => MonthlyFee::forMonth($year, $month)->where('status', 'paid')->count(),
-            'pending_count' => MonthlyFee::forMonth($year, $month)->pending()->count(),
+            'total' => $totalValue,
+            'paid' => $paidValue,
+            'pending' => $pendingValue,
+            'count' => $totalCount,
         ];
-        
-        return view('financial.index', compact('monthlyFees', 'summary', 'year', 'month'));
+
+        $invoices = $invoicesQuery->latest()->paginate(20);
+
+        return view('financial.index', compact(
+            'year',
+            'month',
+            'status',
+            'search',
+            'invoices',
+            'summary'
+        ));
     }
     
     /**
@@ -168,6 +188,39 @@ class FinancialController extends Controller
         
         return back()->with('success', 'Pagamento registrado!');
     }
+
+    /**
+     * Remove last payment from a payable.
+     */
+    public function markAsUnpaid(Request $request, $type, $id)
+    {
+        if ($type === 'monthly_fee') {
+            $payable = MonthlyFee::findOrFail($id);
+        } elseif ($type === 'material_fee') {
+            $payable = MaterialFee::findOrFail($id);
+        } else {
+            abort(404);
+        }
+
+        $payment = $payable->payments()->latest('payment_date')->latest('id')->first();
+
+        if (!$payment) {
+            return back()->with('error', 'Nenhum pagamento encontrado para remover.');
+        }
+
+        DB::transaction(function () use ($payable, $payment) {
+            $currentPaid = (float) $payable->amount_paid;
+            $newPaid = max(0, $currentPaid - (float) $payment->amount);
+            $payable->amount_paid = $newPaid;
+            if ($payment->receipt_path) {
+                Storage::disk('public')->delete($payment->receipt_path);
+            }
+            $payment->delete();
+            $payable->updateStatus();
+        });
+
+        return back()->with('success', 'Pagamento removido com sucesso!');
+    }
     
     /**
      * Generate monthly fees for all active students.
@@ -216,7 +269,7 @@ class FinancialController extends Controller
                     'month' => $month,
                     'amount' => $amount,
                     'status' => 'pending',
-                    'due_date' => Carbon::create($year, $month, $studentDueDay),
+                    'due_date' => $this->makeDueDate($year, $month, (int) $studentDueDay),
                 ]);
                 
                 $created++;
@@ -224,6 +277,14 @@ class FinancialController extends Controller
         }
         
         return back()->with('success', "Mensalidades geradas: {$created} novas, {$skipped} já existentes.");
+    }
+
+    private function makeDueDate(int $year, int $month, int $day): Carbon
+    {
+        $base = Carbon::create($year, $month, 1);
+        $day = max(1, min($day, $base->daysInMonth));
+
+        return Carbon::create($year, $month, $day);
     }
     
     /**

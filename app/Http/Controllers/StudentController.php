@@ -180,7 +180,7 @@ class StudentController extends Controller
                     'month' => Carbon::now()->month,
                     'amount' => $monthlyFeeAmount,
                     'status' => 'pending',
-                    'due_date' => Carbon::now()->day((int)$request->due_day),
+                    'due_date' => $this->makeDueDate(Carbon::now()->year, Carbon::now()->month, (int) $request->due_day),
                 ]);
             }
             
@@ -217,7 +217,7 @@ class StudentController extends Controller
             'documents',
             'studentMaterials.material',
             'activeEnrollments.classModel',
-            'monthlyFees' => fn($q) => $q->orderBy('year', 'desc')->orderBy('month', 'desc'),
+            'invoices' => fn($q) => $q->orderBy('year', 'desc')->orderBy('month', 'desc'),
             'materialFees' => fn($q) => $q->orderBy('year', 'desc'),
             'attendanceLogs' => fn($q) => $q->withTrashed()->latest('date')->limit(30),
         ]);
@@ -335,6 +335,14 @@ class StudentController extends Controller
             return back()->withInput()
                 ->with('error', 'Erro ao atualizar aluno: ' . $e->getMessage());
         }
+    }
+
+    private function makeDueDate(int $year, int $month, int $day): Carbon
+    {
+        $base = Carbon::create($year, $month, 1);
+        $day = max(1, min($day, $base->daysInMonth));
+
+        return Carbon::create($year, $month, $day);
     }
 
     /**

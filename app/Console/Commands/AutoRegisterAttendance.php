@@ -54,6 +54,9 @@ class AutoRegisterAttendance extends Command
                 }
 
                 $studentId = $enrollment->student_id;
+                $student = $enrollment->student;
+                $expectedStart = $student->start_time ?? $classModel->start_time;
+                $expectedEnd = $student->end_time ?? $classModel->end_time;
 
                 // Check for existing log
                 $log = AttendanceLog::where('date', $dateStr)
@@ -67,10 +70,10 @@ class AutoRegisterAttendance extends Command
                         'student_id' => $studentId,
                         'class_id' => $classModel->id,
                         'date' => $dateStr,
-                        'check_in' => $classModel->start_time,
-                        'check_out' => $classModel->end_time,
-                        'expected_start' => $classModel->start_time,
-                        'expected_end' => $classModel->end_time,
+                        'check_in' => $expectedStart,
+                        'check_out' => $expectedEnd,
+                        'expected_start' => $expectedStart,
+                        'expected_end' => $expectedEnd,
                         'registered_by' => 1, // System admin or bot user
                     ]);
                     $createdCount++;
@@ -78,7 +81,11 @@ class AutoRegisterAttendance extends Command
                 } else {
                     // Scenario 2: Check-in exists but no check-out
                     if ($log->check_in && !$log->check_out) {
-                        $log->check_out = $classModel->end_time;
+                        $log->check_out = $expectedEnd;
+                        if (!$log->expected_start || !$log->expected_end) {
+                            $log->expected_start = $expectedStart;
+                            $log->expected_end = $expectedEnd;
+                        }
                         
                         // Recalculate extras if needed
                         $tolerance = Setting::getExtraHourTolerance();

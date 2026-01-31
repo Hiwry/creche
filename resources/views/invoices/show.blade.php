@@ -3,7 +3,7 @@
 @section('content')
 <div class="action-bar">
     <div class="action-bar-left">
-        <a href="{{ route('invoices.index') }}" class="btn btn-secondary">
+        <a href="{{ route('financial.index', ['tab' => 'invoices']) }}" class="btn btn-secondary">
             <i class="fas fa-arrow-left"></i> Voltar
         </a>
         <h1 style="font-size: 1.5rem; font-weight: 600; margin-left: 15px;">
@@ -36,6 +36,13 @@
             @csrf
             <button type="submit" class="btn btn-success">
                 <i class="fas fa-check"></i> Marcar como Paga
+            </button>
+        </form>
+        @else
+        <form action="{{ route('invoices.unpaid', $invoice) }}" method="POST" style="display: inline;">
+            @csrf
+            <button type="submit" class="btn btn-danger">
+                <i class="fas fa-undo"></i> Remover Pagamento
             </button>
         </form>
         @endif

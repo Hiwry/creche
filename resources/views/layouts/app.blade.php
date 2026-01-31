@@ -48,11 +48,6 @@
                     
                     <a href="{{ route('financial.index') }}" class="nav-link {{ request()->routeIs('financial.*') ? 'active' : '' }}">
                         <i class="fas fa-dollar-sign"></i>
-                        <span>Financeiro</span>
-                    </a>
-                    
-                    <a href="{{ route('invoices.index') }}" class="nav-link {{ request()->routeIs('invoices.*') ? 'active' : '' }}">
-                        <i class="fas fa-file-invoice"></i>
                         <span>Faturas</span>
                     </a>
                     

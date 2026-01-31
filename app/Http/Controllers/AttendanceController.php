@@ -59,6 +59,8 @@ class AttendanceController extends Controller
         ]);
         
         $class = ClassModel::findOrFail($request->class_id);
+        $student = Student::findOrFail($request->student_id);
+        [$expectedStart, $expectedEnd] = $this->resolveExpectedSchedule($student, $class);
         
         $log = AttendanceLog::updateOrCreate(
             [
@@ -68,8 +70,8 @@ class AttendanceController extends Controller
             ],
             [
                 'check_in' => $request->input('check_in', Carbon::now()->format('H:i')),
-                'expected_start' => $class->start_time,
-                'expected_end' => $class->end_time,
+                'expected_start' => $expectedStart,
+                'expected_end' => $expectedEnd,
                 'registered_by' => auth()->id(),
             ]
         );
@@ -95,6 +97,16 @@ class AttendanceController extends Controller
             
         if (!$log) {
             return back()->with('error', 'Registro de entrada não encontrado!');
+        }
+
+        if (!$log->expected_start || !$log->expected_end) {
+            $student = Student::find($log->student_id);
+            $class = $log->class_id ? ClassModel::find($log->class_id) : null;
+            if ($student) {
+                [$expectedStart, $expectedEnd] = $this->resolveExpectedSchedule($student, $class);
+                $log->expected_start = $expectedStart;
+                $log->expected_end = $expectedEnd;
+            }
         }
         
         $log->check_out = $request->input('check_out', Carbon::now()->format('H:i'));
@@ -123,6 +135,7 @@ class AttendanceController extends Controller
         ]);
         
         $class = ClassModel::findOrFail($request->class_id);
+        $student = Student::findOrFail($request->student_id);
         $now = Carbon::now()->format('H:i');
         
         $date = Carbon::parse($request->date)->format('Y-m-d');
@@ -136,8 +149,9 @@ class AttendanceController extends Controller
                 'date' => $date,
             ]);
         
-        $log->expected_start = $class->start_time;
-        $log->expected_end = $class->end_time;
+        [$expectedStart, $expectedEnd] = $this->resolveExpectedSchedule($student, $class);
+        $log->expected_start = $expectedStart;
+        $log->expected_end = $expectedEnd;
         $log->registered_by = auth()->id();
         
         if ($request->type === 'check_in') {
@@ -198,10 +212,81 @@ class AttendanceController extends Controller
         
         $selectedStudent = null;
         if ($request->filled('student_id')) {
-             $selectedStudent = Student::find($request->student_id);
+            $selectedStudent = Student::with('activeEnrollments.classModel')->find($request->student_id);
         }
 
-        return view('attendance.extra-hours', compact('byStudent', 'summary', 'year', 'month', 'selectedStudent'));
+        $extraHourRate = Setting::getExtraHourRate();
+        $extraHourTolerance = Setting::getExtraHourTolerance();
+
+        return view('attendance.extra-hours', compact(
+            'byStudent',
+            'summary',
+            'year',
+            'month',
+            'selectedStudent',
+            'extraHourRate',
+            'extraHourTolerance'
+        ));
+    }
+
+    /**
+     * Store extra hours log from report page.
+     */
+    public function storeExtraHours(Request $request)
+    {
+        $request->validate([
+            'student_id' => 'required|exists:students,id',
+            'date' => 'required|date',
+            'check_in' => 'required|date_format:H:i',
+            'check_out' => 'required|date_format:H:i|after_or_equal:check_in',
+            'class_id' => 'nullable|exists:classes,id',
+            'year' => 'nullable|integer',
+            'month' => 'nullable|integer',
+        ]);
+
+        $student = Student::with('activeEnrollments.classModel')->findOrFail($request->student_id);
+
+        $classId = $request->filled('class_id') ? (int) $request->class_id : null;
+        $classModel = null;
+        if ($classId) {
+            $classModel = ClassModel::find($classId);
+        } elseif ($student->activeEnrollments->count() > 0) {
+            $classModel = $student->activeEnrollments->first()->classModel;
+            $classId = $classModel?->id;
+        }
+
+        [$expectedStart, $expectedEnd] = $this->resolveExpectedSchedule($student, $classModel);
+
+        if (!$expectedStart || !$expectedEnd) {
+            return back()->with('error', 'Horário previsto não encontrado. Defina o horário na turma ou no aluno.');
+        }
+
+        $log = AttendanceLog::updateOrCreate(
+            [
+                'student_id' => $student->id,
+                'class_id' => $classId,
+                'date' => Carbon::parse($request->date)->format('Y-m-d'),
+            ],
+            [
+                'check_in' => $request->check_in,
+                'check_out' => $request->check_out,
+                'expected_start' => $expectedStart,
+                'expected_end' => $expectedEnd,
+                'registered_by' => auth()->id(),
+            ]
+        );
+
+        $tolerance = Setting::getExtraHourTolerance();
+        $hourlyRate = Setting::getExtraHourRate();
+        $log->extra_minutes = $log->calculateExtraMinutes($tolerance);
+        $log->extra_charge = $log->calculateExtraCharge($hourlyRate, $tolerance);
+        $log->save();
+
+        $message = $log->wasRecentlyCreated
+            ? 'Registro criado e horas extras calculadas!'
+            : 'Registro atualizado e horas extras recalculadas!';
+
+        return back()->with('success', $message);
     }
     
     /**
@@ -209,7 +294,24 @@ class AttendanceController extends Controller
      */
     public function edit(AttendanceLog $log)
     {
-        return view('attendance.edit', compact('log'));
+        $hourlyRate = Setting::getExtraHourRate();
+        $tolerance = Setting::getExtraHourTolerance();
+        $autoExtraMinutes = $log->calculateExtraMinutes($tolerance);
+
+        $isManualExtra = false;
+        if ($log->extra_minutes !== null) {
+            $storedMinutes = (int) ($log->extra_minutes ?? 0);
+            $autoMinutes = (int) $autoExtraMinutes;
+            $isManualExtra = ($storedMinutes !== $autoMinutes);
+        }
+
+        return view('attendance.edit', compact(
+            'log',
+            'hourlyRate',
+            'tolerance',
+            'autoExtraMinutes',
+            'isManualExtra'
+        ));
     }
     
     /**
@@ -221,8 +323,18 @@ class AttendanceController extends Controller
             'check_in' => 'nullable|date_format:H:i',
             'check_out' => 'nullable|date_format:H:i',
             'extra_minutes' => 'nullable|integer|min:0',
-            'extra_charge' => 'nullable|numeric|min:0',
+            'extra_manual' => 'nullable|boolean',
         ]);
+
+        if ($request->filled('check_in') && $request->filled('check_out')) {
+            $checkIn = Carbon::createFromFormat('H:i', $request->check_in);
+            $checkOut = Carbon::createFromFormat('H:i', $request->check_out);
+            if ($checkOut->lt($checkIn)) {
+                return back()
+                    ->withInput()
+                    ->withErrors(['check_out' => 'O horário de saída deve ser após a entrada.']);
+            }
+        }
         
         $log->check_in = $request->check_in;
         $log->check_out = $request->check_out;
@@ -230,21 +342,37 @@ class AttendanceController extends Controller
         $log->notes = $request->notes;
         $log->save();
         
-        // Check if manual overrides are present
-        if ($request->filled('extra_minutes') || $request->filled('extra_charge')) {
-            $log->extra_minutes = $request->input('extra_minutes', 0);
-            $log->extra_charge = $request->input('extra_charge', 0);
+        $tolerance = Setting::getExtraHourTolerance();
+        $hourlyRate = Setting::getExtraHourRate();
+
+        $student = Student::find($log->student_id);
+        $class = $log->class_id ? ClassModel::find($log->class_id) : null;
+        if ($student) {
+            [$expectedStart, $expectedEnd] = $this->resolveExpectedSchedule($student, $class);
+            $log->expected_start = $expectedStart;
+            $log->expected_end = $expectedEnd;
+        }
+
+        if ($request->boolean('extra_manual')) {
+            $log->extra_minutes = (int) $request->input('extra_minutes', 0);
+            $log->extra_charge = round(($log->extra_minutes / 60) * $hourlyRate, 2);
         } else {
-            // Recalculate based on times if not manually overriden
-            $tolerance = Setting::getExtraHourTolerance();
-            $hourlyRate = Setting::getExtraHourRate();
-            $log->updateExtraCalculations($hourlyRate, $tolerance);
+            $log->extra_minutes = $log->calculateExtraMinutes($tolerance);
+            $log->extra_charge = $log->calculateExtraCharge($hourlyRate, $tolerance);
         }
         
         $log->save();
         
         return redirect()->route('attendance.index', ['date' => $log->date->toDateString()])
             ->with('success', 'Registro atualizado!');
+    }
+
+    private function resolveExpectedSchedule(Student $student, ?ClassModel $classModel): array
+    {
+        $expectedStart = $student->start_time ?? $classModel?->start_time;
+        $expectedEnd = $student->end_time ?? $classModel?->end_time;
+
+        return [$expectedStart, $expectedEnd];
     }
 
     public function destroy(AttendanceLog $log)

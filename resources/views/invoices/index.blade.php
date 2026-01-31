@@ -1,15 +1,30 @@
 @extends('layouts.app')
 
 @section('content')
+@php
+    $bulkYear = request('year', date('Y'));
+    $bulkMonth = request('month');
+    if (!$bulkMonth) {
+        $bulkMonth = date('n');
+    }
+@endphp
 <div class="action-bar">
     <div class="action-bar-left">
         <h1 style="font-size: 1.5rem; font-weight: 600;">Faturas</h1>
     </div>
     <div class="action-bar-right">
-        <form action="{{ route('invoices.bulk-generate') }}" method="POST" style="display: inline;">
+        <form action="{{ route('invoices.bulk-generate') }}" method="POST" class="filter-form" style="margin: 0;">
             @csrf
-            <input type="hidden" name="year" value="{{ date('Y') }}">
-            <input type="hidden" name="month" value="{{ date('n') }}">
+            <select name="year" class="form-control">
+                @for($y = date('Y'); $y >= date('Y') - 2; $y--)
+                <option value="{{ $y }}" {{ (int) $bulkYear === $y ? 'selected' : '' }}>{{ $y }}</option>
+                @endfor
+            </select>
+            <select name="month" class="form-control">
+                @foreach(\App\Models\Invoice::MONTHS as $m => $name)
+                <option value="{{ $m }}" {{ (int) $bulkMonth === $m ? 'selected' : '' }}>{{ $name }}</option>
+                @endforeach
+            </select>
             <button type="submit" class="btn btn-warning">
                 <i class="fas fa-sync"></i> Gerar Faturas do Mês
             </button>
@@ -92,6 +107,13 @@
                                 @csrf
                                 <button type="submit" class="btn btn-success btn-sm" title="Marcar como paga">
                                     <i class="fas fa-check"></i>
+                                </button>
+                            </form>
+                            @else
+                            <form action="{{ route('invoices.unpaid', $invoice) }}" method="POST" style="display: inline;">
+                                @csrf
+                                <button type="submit" class="btn btn-danger btn-sm" title="Remover pagamento">
+                                    <i class="fas fa-undo"></i>
                                 </button>
                             </form>
                             @endif

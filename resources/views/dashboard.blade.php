@@ -1,6 +1,32 @@
 @extends('layouts.app')
 
 @section('content')
+<div class="action-bar">
+    <div class="action-bar-left">
+        <h1 style="font-size: 1.5rem; font-weight: 600;">Dashboard</h1>
+        <span style="color: #6B7280; margin-left: 10px;">
+            {{ $periodLabel }}
+        </span>
+    </div>
+    <div class="action-bar-right">
+        <form action="{{ route('dashboard') }}" method="GET" class="filter-form">
+            <select name="period" class="form-control">
+                <option value="today" {{ ($period ?? '') === 'today' ? 'selected' : '' }}>Hoje</option>
+                <option value="last_7_days" {{ ($period ?? '') === 'last_7_days' ? 'selected' : '' }}>Últimos 7 dias</option>
+                <option value="this_month" {{ ($period ?? '') === 'this_month' ? 'selected' : '' }}>Mês Atual</option>
+                <option value="last_month" {{ ($period ?? '') === 'last_month' ? 'selected' : '' }}>Mês Anterior</option>
+                <option value="custom" {{ ($period ?? '') === 'custom' ? 'selected' : '' }}>Personalizado</option>
+            </select>
+            <input type="date" name="start_date" class="form-control" value="{{ $startDate->format('Y-m-d') }}">
+            <input type="date" name="end_date" class="form-control" value="{{ $endDate->format('Y-m-d') }}">
+            <button type="submit" class="btn btn-secondary">
+                <i class="fas fa-filter"></i> Filtrar
+            </button>
+            <a href="{{ route('dashboard') }}" class="btn btn-light">Limpar</a>
+        </form>
+    </div>
+</div>
+
 <!-- Stats Cards -->
 <div class="stats-grid">
     <div class="stat-card yellow">
@@ -19,7 +45,7 @@
         </div>
         <div class="stat-content">
             <div class="stat-value">R$ {{ number_format($monthlyRevenue, 2, ',', '.') }}</div>
-            <div class="stat-label">Mensalidades Pagas (Mês Atual)</div>
+            <div class="stat-label">Mensalidades Pagas (Período)</div>
         </div>
     </div>
     
@@ -29,7 +55,7 @@
         </div>
         <div class="stat-content">
             <div class="stat-value">{{ $pendingFees }} alunos</div>
-            <div class="stat-label">Pendências</div>
+            <div class="stat-label">Pendências (Período)</div>
         </div>
     </div>
     
@@ -39,7 +65,7 @@
         </div>
         <div class="stat-content">
             <div class="stat-value">R$ {{ number_format($extraHoursData->total_charge ?? 0, 2, ',', '.') }}</div>
-            <div class="stat-label">Horas Extras (Total do Mês)</div>
+            <div class="stat-label">Horas Extras (Período)</div>
         </div>
     </div>
 </div>
@@ -50,6 +76,7 @@
     <div class="card">
         <div class="card-header">
             <h3 class="card-title">Status dos Pagamentos</h3>
+            <span style="font-size: 0.8rem; color: #6B7280;">{{ $periodLabel }}</span>
         </div>
         <div class="card-body">
             <div style="display: flex; align-items: center; justify-content: center; gap: 30px;">
@@ -86,7 +113,7 @@
     <div class="card">
         <div class="card-header">
             <h3 class="card-title">Horas Extras</h3>
-            <span style="font-size: 0.8rem; color: #6B7280;">Últimos 7 dias</span>
+            <span style="font-size: 0.8rem; color: #6B7280;">{{ $periodLabel }}</span>
         </div>
         <div class="card-body">
             <div style="display: flex; align-items: flex-end; gap: 15px; height: 150px; padding-top: 20px;">
@@ -97,7 +124,7 @@
                                 height: {{ max(5, min(100, $day['hours'] * 20)) }}px;
                                 transition: all 0.3s ease;">
                     </div>
-                    <span style="font-size: 0.75rem; color: #6B7280; margin-top: 8px;">{{ $day['day'] }}</span>
+                    <span style="font-size: 0.75rem; color: #6B7280; margin-top: 8px;">{{ $day['label'] }}</span>
                 </div>
                 @endforeach
             </div>
@@ -143,7 +170,7 @@
         <div class="card-header">
             <h3 class="card-title">
                 <i class="fas fa-bell" style="color: #F59E0B; margin-right: 10px;"></i>
-                Últimos Pagamentos
+                Pagamentos do Período
             </h3>
         </div>
         <div class="card-body">
