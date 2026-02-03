@@ -60,6 +60,11 @@
                         <i class="fas fa-chart-bar"></i>
                         <span>Relatórios</span>
                     </a>
+                    
+                    <a href="{{ route('reports.birthdays') }}" class="nav-link {{ request()->routeIs('reports.birthdays') ? 'active' : '' }}">
+                        <i class="fas fa-cake-candles"></i>
+                        <span>Aniversariantes</span>
+                    </a>
 
                     <div class="nav-section-title" style="margin-top: 20px;">MATERIAIS</div>
                     <a href="{{ route('school-materials.index') }}" class="nav-link {{ request()->routeIs('school-materials.index') ? 'active' : '' }}">

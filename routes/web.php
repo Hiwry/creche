@@ -9,6 +9,8 @@ use App\Http\Controllers\FinancialController;
 use App\Http\Controllers\AttendanceController;
 use App\Http\Controllers\InvoiceController;
 use App\Http\Controllers\SettingController;
+use App\Http\Controllers\IncomeTaxController;
+use App\Http\Controllers\BirthdayController;
 use App\Http\Controllers\Auth\LoginController;
 
 // Public routes
@@ -30,6 +32,8 @@ Route::middleware(['auth'])->group(function () {
     Route::resource('students', StudentController::class);
     Route::post('/students/{student}/documents', [StudentController::class, 'uploadDocument'])->name('students.documents.upload');
     Route::delete('/students/{student}/documents/{document}', [StudentController::class, 'deleteDocument'])->name('students.documents.delete');
+    Route::get('/students/{student}/income-tax', [IncomeTaxController::class, 'show'])->name('students.income-tax');
+    Route::get('/students/{student}/income-tax/pdf', [IncomeTaxController::class, 'downloadPdf'])->name('students.income-tax.pdf');
     
     // Guardians
     Route::resource('guardians', GuardianController::class);
@@ -62,6 +66,11 @@ Route::middleware(['auth'])->group(function () {
         Route::get('/{log}/edit', [AttendanceController::class, 'edit'])->name('edit');
         Route::put('/{log}', [AttendanceController::class, 'update'])->name('update');
         Route::delete('/{log}', [AttendanceController::class, 'destroy'])->name('destroy');
+    });
+
+    // Reports
+    Route::prefix('reports')->name('reports.')->group(function () {
+        Route::get('/birthdays', [BirthdayController::class, 'index'])->name('birthdays');
     });
     
     // Invoices

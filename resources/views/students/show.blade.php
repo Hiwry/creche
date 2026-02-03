@@ -12,6 +12,9 @@
         </span>
     </div>
     <div class="action-bar-right">
+        <a href="{{ route('students.income-tax', ['student' => $student->id, 'year' => now()->subYear()->year]) }}" class="btn btn-secondary">
+            <i class="fas fa-file-lines"></i> Declaração IR
+        </a>
         <a href="{{ route('students.edit', $student) }}" class="btn btn-warning">
             <i class="fas fa-edit"></i> Editar
         </a>
