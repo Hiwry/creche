@@ -46,6 +46,7 @@
                         <span>Entrada & Saída</span>
                     </a>
                     
+                    @if(auth()->user()->canManageFinancial())
                     <a href="{{ route('financial.index') }}" class="nav-link {{ request()->routeIs('financial.*') ? 'active' : '' }}">
                         <i class="fas fa-dollar-sign"></i>
                         <span>Faturas</span>
@@ -55,6 +56,7 @@
                         <i class="fas fa-receipt"></i>
                         <span>Despesas</span>
                     </a>
+                    @endif
                     
                     <a href="{{ route('attendance.extra-hours') }}" class="nav-link {{ request()->routeIs('attendance.extra-hours') ? 'active' : '' }}">
                         <i class="fas fa-chart-bar"></i>

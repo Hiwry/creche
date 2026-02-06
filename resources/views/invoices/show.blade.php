@@ -14,9 +14,27 @@
         </span>
     </div>
     <div class="action-bar-right">
+        @php
+            $guardianEmail = $invoice->student?->guardian?->email;
+        @endphp
+        @if($invoice->status === 'paid')
+        <a href="{{ route('invoices.print', $invoice) }}" target="_blank" class="btn btn-secondary">
+            <i class="fas fa-print"></i> Imprimir
+        </a>
+        @endif
         <a href="{{ route('invoices.pdf', $invoice) }}" class="btn btn-secondary">
             <i class="fas fa-file-pdf"></i> Baixar PDF
         </a>
+        @if($invoice->status === 'paid')
+        <form action="{{ route('invoices.send-receipt', $invoice) }}" method="POST" style="display: inline;">
+            @csrf
+            <button type="submit" class="btn btn-primary"
+                    title="{{ $guardianEmail ? 'Enviar recibo por e-mail' : 'Responsável sem e-mail cadastrado' }}"
+                    @disabled(!$guardianEmail)>
+                <i class="fas fa-paper-plane"></i> Enviar Recibo
+            </button>
+        </form>
+        @endif
         @if($invoice->status === 'draft')
         <form action="{{ route('invoices.recalculate', $invoice) }}" method="POST" style="display: inline;">
             @csrf

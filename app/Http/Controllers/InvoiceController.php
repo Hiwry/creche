@@ -10,6 +10,7 @@ use App\Models\MaterialFee;
 use App\Models\AttendanceLog;
 use App\Models\Setting;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Mail;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Carbon\Carbon;
 
@@ -201,29 +202,8 @@ class InvoiceController extends Controller
         set_time_limit(300);
 
         try {
-            $invoice->load(['student.guardian', 'items']);
-            
-            $settings = array_merge(
-                Setting::getByGroup('company'),
-                Setting::getByGroup('financial'),
-                Setting::getByGroup('invoice')
-            );
-            
-            /*
-            // DEBUG: Return HTML directly to identify if error is in View or PDF generation
-            return view('invoices.pdf', [
-                'invoice' => $invoice,
-                'settings' => $settings,
-            ]);
-            */
-            
-            $pdf = Pdf::loadView('invoices.pdf', [
-                'invoice' => $invoice,
-                'settings' => $settings,
-            ]);
-            
-            $filename = "fatura_" . str_replace('/', '_', $invoice->invoice_number) . ".pdf";
-            
+            [$pdf, $filename] = $this->buildInvoicePdf($invoice);
+
             return $pdf->download($filename);
         } catch (\Throwable $e) {
             return response()->make("
@@ -233,6 +213,64 @@ class InvoiceController extends Controller
                 <p><strong>Linha:</strong> " . $e->getLine() . "</p>
                 <pre>" . $e->getTraceAsString() . "</pre>
             ", 500);
+        }
+    }
+
+    /**
+     * Open receipt PDF in browser for print.
+     */
+    public function printPdf(Invoice $invoice)
+    {
+        ini_set('memory_limit', '256M');
+        set_time_limit(300);
+
+        if ($invoice->status !== 'paid') {
+            return back()->with('error', 'O recibo só pode ser emitido para faturas pagas.');
+        }
+
+        try {
+            [$pdf, $filename] = $this->buildReceiptPdf($invoice);
+            return $pdf->stream($filename);
+        } catch (\Throwable $e) {
+            return back()->with('error', 'Erro ao abrir recibo para impressão: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Send receipt by e-mail with attached PDF.
+     */
+    public function sendReceipt(Invoice $invoice)
+    {
+        $invoice->load(['student.guardian', 'items']);
+
+        if ($invoice->status !== 'paid') {
+            return back()->with('error', 'O recibo só pode ser enviado para faturas pagas.');
+        }
+
+        $recipientEmail = $invoice->student?->guardian?->email;
+        $recipientName = $invoice->student?->guardian?->name ?? $invoice->student?->name;
+
+        if (!$recipientEmail) {
+            return back()->with('error', 'O responsável deste aluno não possui e-mail cadastrado.');
+        }
+
+        try {
+            [$pdf, $filename, $settings] = $this->buildReceiptPdf($invoice);
+            $companyName = $settings['company_name'] ?? config('app.name');
+            $pdfContent = $pdf->output();
+
+            Mail::send('emails.invoice-receipt', [
+                'invoice' => $invoice,
+                'companyName' => $companyName,
+            ], function ($message) use ($recipientEmail, $recipientName, $filename, $pdfContent, $invoice, $companyName) {
+                $message->to($recipientEmail, $recipientName)
+                    ->subject("Recibo de pagamento {$invoice->invoice_number} - {$companyName}")
+                    ->attachData($pdfContent, $filename, ['mime' => 'application/pdf']);
+            });
+
+            return back()->with('success', "Recibo enviado para {$recipientEmail}.");
+        } catch (\Throwable $e) {
+            return back()->with('error', 'Erro ao enviar recibo: ' . $e->getMessage());
         }
     }
     
@@ -420,5 +458,48 @@ class InvoiceController extends Controller
         $day = max(1, min($day, $base->daysInMonth));
 
         return Carbon::create($year, $month, $day);
+    }
+
+    private function buildInvoicePdf(Invoice $invoice): array
+    {
+        $invoice->load(['student.guardian', 'items']);
+
+        $settings = $this->getPdfSettings();
+
+        $pdf = Pdf::loadView('invoices.pdf', [
+            'invoice' => $invoice,
+            'settings' => $settings,
+        ]);
+
+        $filename = "fatura_" . str_replace('/', '_', $invoice->invoice_number) . ".pdf";
+
+        return [$pdf, $filename, $settings];
+    }
+
+    private function buildReceiptPdf(Invoice $invoice): array
+    {
+        $invoice->load(['student.guardian', 'items']);
+
+        $settings = $this->getPdfSettings();
+        $issuedAt = $invoice->paid_at ? Carbon::parse($invoice->paid_at) : Carbon::today();
+
+        $pdf = Pdf::loadView('invoices.receipt-pdf', [
+            'invoice' => $invoice,
+            'settings' => $settings,
+            'issuedAt' => $issuedAt,
+        ]);
+
+        $filename = "recibo_" . str_replace('/', '_', $invoice->invoice_number) . ".pdf";
+
+        return [$pdf, $filename, $settings];
+    }
+
+    private function getPdfSettings(): array
+    {
+        return array_merge(
+            Setting::getByGroup('company'),
+            Setting::getByGroup('financial'),
+            Setting::getByGroup('invoice')
+        );
     }
 }

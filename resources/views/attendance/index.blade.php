@@ -1,11 +1,15 @@
 @extends('layouts.app')
 
 @section('content')
+@php
+    $selectedDate = \Carbon\Carbon::parse($date);
+    $today = \Carbon\Carbon::today();
+@endphp
 <div class="action-bar">
     <div class="action-bar-left">
         <h1 style="font-size: 1.5rem; font-weight: 600;">Entrada & Saída</h1>
         <span style="color: #6B7280; margin-left: 10px;">
-            {{ \Carbon\Carbon::parse($date)->format('d/m/Y') }} ({{ ucfirst(\Carbon\Carbon::parse($date)->locale('pt_BR')->translatedFormat('l')) }})
+            {{ $selectedDate->format('d/m/Y') }} ({{ ucfirst($selectedDate->locale('pt_BR')->translatedFormat('l')) }})
         </span>
     </div>
     <div class="action-bar-right">
@@ -16,9 +20,51 @@
                 <i class="fas fa-search"></i>
             </button>
         </form>
+        <a href="{{ route('attendance.report') }}" class="btn btn-secondary">
+            <i class="fas fa-list-check"></i> Lista de Presença
+        </a>
         <a href="{{ route('attendance.extra-hours') }}" class="btn btn-warning">
             <i class="fas fa-clock"></i> Horas Extras
         </a>
+    </div>
+</div>
+
+<div class="stats-grid" style="grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); margin-bottom: 20px;">
+    <div class="stat-card yellow">
+        <div class="stat-icon">
+            <i class="fas fa-users"></i>
+        </div>
+        <div class="stat-content">
+            <div class="stat-value">{{ $summary['expected'] ?? 0 }}</div>
+            <div class="stat-label">Alunos Esperados</div>
+        </div>
+    </div>
+    <div class="stat-card green">
+        <div class="stat-icon">
+            <i class="fas fa-check-circle"></i>
+        </div>
+        <div class="stat-content">
+            <div class="stat-value">{{ $summary['present'] ?? 0 }}</div>
+            <div class="stat-label">Presentes</div>
+        </div>
+    </div>
+    <div class="stat-card orange">
+        <div class="stat-icon">
+            <i class="fas fa-user-clock"></i>
+        </div>
+        <div class="stat-content">
+            <div class="stat-value">{{ $summary['pending'] ?? 0 }}</div>
+            <div class="stat-label">Sem Registro</div>
+        </div>
+    </div>
+    <div class="stat-card purple">
+        <div class="stat-icon">
+            <i class="fas fa-user-xmark"></i>
+        </div>
+        <div class="stat-content">
+            <div class="stat-value">{{ $summary['absences'] ?? 0 }}</div>
+            <div class="stat-label">Faltas do Dia</div>
+        </div>
     </div>
 </div>
 
@@ -40,6 +86,7 @@
             <thead>
                 <tr>
                     <th>Aluno</th>
+                    <th>Status</th>
                     <th>Entrada</th>
                     <th>Saída</th>
                     <th>Horas Extras</th>
@@ -53,14 +100,31 @@
                     $key = $enrollment->student_id . '-' . $class->id;
                     $log = $logs[$key] ?? null;
                     $student = $enrollment->student;
+
+                    if ($log && ($log->check_in || $log->check_out)) {
+                        $statusLabel = 'Presente';
+                        $statusClass = 'badge-success';
+                    } elseif ($selectedDate->lt($today)) {
+                        $statusLabel = 'Falta';
+                        $statusClass = 'badge-danger';
+                    } elseif ($selectedDate->isFuture()) {
+                        $statusLabel = 'Agendado';
+                        $statusClass = 'badge-secondary';
+                    } else {
+                        $statusLabel = 'Sem registro';
+                        $statusClass = 'badge-warning';
+                    }
                 @endphp
-                <tr>
+                <tr @if($statusLabel === 'Falta') style="background: #FEF2F2;" @endif>
                     <td>
                         <div style="display: flex; align-items: center; gap: 10px;">
                             <img src="{{ $student->photo_url }}" 
                                  style="width: 35px; height: 35px; border-radius: 50%; object-fit: cover;">
                             <span>{{ $student->name }}</span>
                         </div>
+                    </td>
+                    <td>
+                        <span class="badge {{ $statusClass }}">{{ $statusLabel }}</span>
                     </td>
                     <td>
                         @if($log && $log->check_in)
@@ -130,7 +194,7 @@
 <div class="card">
     <div style="text-align: center; padding: 40px; color: #6B7280;">
         <i class="fas fa-school" style="font-size: 48px; margin-bottom: 20px; opacity: 0.5;"></i>
-        <p>Nenhuma turma ou aluno ativo encontrado.</p>
+        <p>Nenhuma turma com aula nesse dia ou sem alunos ativos.</p>
     </div>
 </div>
 @endforelse

@@ -109,6 +109,9 @@
             </thead>
             <tbody>
                 @forelse($invoices as $invoice)
+                @php
+                    $guardianEmail = $invoice->student?->guardian?->email;
+                @endphp
                 <tr>
                     <td>{{ $invoice->invoice_number }}</td>
                     <td>
@@ -147,6 +150,26 @@
                             <a href="{{ route('invoices.pdf', $invoice) }}" class="btn btn-secondary btn-sm" title="PDF">
                                 <i class="fas fa-file-pdf"></i>
                             </a>
+                            @if($invoice->status === 'paid')
+                            <a href="{{ route('invoices.print', $invoice) }}" target="_blank" class="btn btn-secondary btn-sm" title="Imprimir recibo">
+                                <i class="fas fa-print"></i>
+                            </a>
+                            <form action="{{ route('invoices.send-receipt', $invoice) }}" method="POST" style="display: inline;">
+                                @csrf
+                                <button type="submit" class="btn btn-secondary btn-sm"
+                                        title="{{ $guardianEmail ? 'Enviar recibo por e-mail' : 'Responsável sem e-mail cadastrado' }}"
+                                        @disabled(!$guardianEmail)>
+                                    <i class="fas fa-paper-plane"></i>
+                                </button>
+                            </form>
+                            @else
+                            <button type="button" class="btn btn-secondary btn-sm" title="Recibo disponível após marcar como paga" disabled style="opacity: .6; cursor: not-allowed;">
+                                <i class="fas fa-print"></i>
+                            </button>
+                            <button type="button" class="btn btn-secondary btn-sm" title="Recibo disponível após marcar como paga" disabled style="opacity: .6; cursor: not-allowed;">
+                                <i class="fas fa-paper-plane"></i>
+                            </button>
+                            @endif
                             @if($invoice->status !== 'paid')
                             <form action="{{ route('invoices.paid', $invoice) }}" method="POST" style="display: inline;">
                                 @csrf

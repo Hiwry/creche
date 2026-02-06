@@ -44,7 +44,7 @@ Route::middleware(['auth'])->group(function () {
     Route::delete('/classes/{class}/enrollments/{enrollment}', [ClassController::class, 'removeStudent'])->name('classes.remove-student');
     
     // Financial
-    Route::prefix('financial')->name('financial.')->group(function () {
+    Route::prefix('financial')->name('financial.')->middleware('financial.access')->group(function () {
         Route::get('/', [FinancialController::class, 'index'])->name('index');
         Route::get('/material-fees', [FinancialController::class, 'materialFees'])->name('material-fees');
         Route::get('/payments', [FinancialController::class, 'payments'])->name('payments');
@@ -58,6 +58,7 @@ Route::middleware(['auth'])->group(function () {
     // Attendance
     Route::prefix('attendance')->name('attendance.')->group(function () {
         Route::get('/', [AttendanceController::class, 'index'])->name('index');
+        Route::get('/report', [AttendanceController::class, 'report'])->name('report');
         Route::post('/check-in', [AttendanceController::class, 'checkIn'])->name('check-in');
         Route::post('/check-out', [AttendanceController::class, 'checkOut'])->name('check-out');
         Route::post('/quick', [AttendanceController::class, 'quickRegister'])->name('quick');
@@ -74,12 +75,14 @@ Route::middleware(['auth'])->group(function () {
     });
     
     // Invoices
-    Route::prefix('invoices')->name('invoices.')->group(function () {
+    Route::prefix('invoices')->name('invoices.')->middleware('financial.access')->group(function () {
         Route::get('/', [InvoiceController::class, 'index'])->name('index');
         Route::post('/generate', [InvoiceController::class, 'generate'])->name('generate');
         Route::post('/bulk-generate', [InvoiceController::class, 'bulkGenerate'])->name('bulk-generate');
         Route::get('/{invoice}', [InvoiceController::class, 'show'])->name('show');
         Route::get('/{invoice}/pdf', [InvoiceController::class, 'downloadPdf'])->name('pdf');
+        Route::get('/{invoice}/print', [InvoiceController::class, 'printPdf'])->name('print');
+        Route::post('/{invoice}/send-receipt', [InvoiceController::class, 'sendReceipt'])->name('send-receipt');
         Route::post('/{invoice}/send', [InvoiceController::class, 'markAsSent'])->name('send');
         Route::post('/{invoice}/paid', [InvoiceController::class, 'markAsPaid'])->name('paid');
         Route::post('/{invoice}/unpaid', [InvoiceController::class, 'markAsUnpaid'])->name('unpaid');
@@ -88,7 +91,7 @@ Route::middleware(['auth'])->group(function () {
     });
     
     // Expenses
-    Route::prefix('expenses')->name('expenses.')->group(function () {
+    Route::prefix('expenses')->name('expenses.')->middleware('financial.access')->group(function () {
         Route::get('/', [\App\Http\Controllers\ExpenseController::class, 'index'])->name('index');
         Route::get('/create', [\App\Http\Controllers\ExpenseController::class, 'create'])->name('create');
         Route::post('/', [\App\Http\Controllers\ExpenseController::class, 'store'])->name('store');
