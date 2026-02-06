@@ -59,9 +59,7 @@ class User extends Authenticatable
 
     public const ROLES = [
         self::ROLE_ADMIN => 'Administrador',
-        self::ROLE_ATTENDANT => 'Atendente/Secretaria',
         self::ROLE_TEACHER => 'Professor',
-        self::ROLE_FINANCIAL => 'Financeiro',
     ];
 
     /**
