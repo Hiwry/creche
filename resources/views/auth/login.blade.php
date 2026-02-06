@@ -157,7 +157,7 @@
                 <div class="login-logo">
                     <i class="fas fa-graduation-cap"></i>
                     <span>SchoolHub</span>
-                    <span class="version">v1.0</span>
+                    <span class="version">v2.2</span>
                 </div>
                 <p class="login-subtitle">Sistema de Gestão de Alunos</p>
             </div>

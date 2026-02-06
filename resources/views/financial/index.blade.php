@@ -1,9 +1,12 @@
-@extends('layouts.app')
+﻿@extends('layouts.app')
 
 @section('content')
 @php
     $invYear = $year ?? date('Y');
     $invMonthGenerate = ($month ?? '') !== '' ? $month : date('n');
+    $canManageFinancial = auth()->user()->canManageFinancial();
+    $canViewValues = auth()->user()->canViewInvoiceValues();
+    $canSendInvoices = auth()->user()->canSendInvoices();
 @endphp
 <div class="action-bar">
     <div class="action-bar-left">
@@ -13,6 +16,7 @@
         </span>
     </div>
     <div class="action-bar-right">
+        @if($canManageFinancial)
         <form action="{{ route('invoices.bulk-generate') }}" method="POST" class="filter-form" style="margin: 0;">
             @csrf
             <select name="year" class="form-control">
@@ -29,10 +33,12 @@
                 <i class="fas fa-sync"></i> Gerar Faturas do Mês
             </button>
         </form>
+        @endif
     </div>
 </div>
 
 <!-- Summary Cards -->
+@if($canViewValues)
 <div class="stats-grid" style="grid-template-columns: repeat(3, 1fr); margin-bottom: 20px;">
     <div class="stat-card green">
         <div class="stat-icon"><i class="fas fa-check-circle"></i></div>
@@ -58,6 +64,13 @@
         </div>
     </div>
 </div>
+@else
+<div class="card" style="margin-bottom: 20px;">
+    <div style="padding: 14px 16px; color: #6B7280;">
+        Você tem acesso apenas ao status das faturas.
+    </div>
+</div>
+@endif
 
 <!-- Filters -->
 <div class="card" style="margin-bottom: 20px;">
@@ -100,8 +113,10 @@
                     <th>Nº</th>
                     <th>Aluno</th>
                     <th>Turma</th>
+                    @if($canViewValues)
                     <th>Valor</th>
                     <th>Pago</th>
+                    @endif
                     <th>Status</th>
                     <th>Vencimento</th>
                     <th>Ações</th>
@@ -128,6 +143,7 @@
                     <td>
                         {{ $invoice->student?->activeEnrollments?->first()?->classModel?->name ?? '-' }}
                     </td>
+                    @if($canViewValues)
                     <td style="font-weight: 600;">{{ $invoice->formatted_total }}</td>
                     <td>
                         @if($invoice->status === 'paid')
@@ -136,6 +152,7 @@
                             R$ 0,00
                         @endif
                     </td>
+                    @endif
                     <td>
                         <span class="badge badge-{{ $invoice->status_color }}">
                             {{ $invoice->status_label }}
@@ -144,53 +161,99 @@
                     <td>{{ $invoice->due_date ? $invoice->due_date->format('d/m/Y') : '-' }}</td>
                     <td>
                         <div style="display: flex; gap: 5px;">
-                            <a href="{{ route('invoices.show', $invoice) }}" class="btn btn-secondary btn-sm" title="Ver">
-                                <i class="fas fa-eye"></i>
-                            </a>
-                            <a href="{{ route('invoices.pdf', $invoice) }}" class="btn btn-secondary btn-sm" title="PDF">
-                                <i class="fas fa-file-pdf"></i>
-                            </a>
-                            @if($invoice->status === 'paid')
-                            <a href="{{ route('invoices.print', $invoice) }}" target="_blank" class="btn btn-secondary btn-sm" title="Imprimir recibo">
-                                <i class="fas fa-print"></i>
-                            </a>
-                            <form action="{{ route('invoices.send-receipt', $invoice) }}" method="POST" style="display: inline;">
-                                @csrf
-                                <button type="submit" class="btn btn-secondary btn-sm"
-                                        title="{{ $guardianEmail ? 'Enviar recibo por e-mail' : 'Responsável sem e-mail cadastrado' }}"
-                                        @disabled(!$guardianEmail)>
+                            @if($canManageFinancial)
+                                <a href="{{ route('invoices.show', $invoice) }}" class="btn btn-secondary btn-sm" title="Ver">
+                                    <i class="fas fa-eye"></i>
+                                </a>
+                                <a href="{{ route('invoices.pdf', $invoice) }}" class="btn btn-secondary btn-sm" title="PDF">
+                                    <i class="fas fa-file-pdf"></i>
+                                </a>
+                                @if($invoice->status === 'paid')
+                                <a href="{{ route('invoices.print', $invoice) }}" target="_blank" class="btn btn-secondary btn-sm" title="Imprimir recibo">
+                                    <i class="fas fa-print"></i>
+                                </a>
+                                <form action="{{ route('invoices.send-receipt', $invoice) }}" method="POST" style="display: inline;">
+                                    @csrf
+                                    <button type="submit" class="btn btn-secondary btn-sm"
+                                            title="{{ $guardianEmail ? 'Enviar recibo por e-mail' : 'Responsável sem e-mail cadastrado' }}"
+                                            @disabled(!$guardianEmail)>
+                                        <i class="fas fa-paper-plane"></i>
+                                    </button>
+                                </form>
+                                @else
+                                <button type="button" class="btn btn-secondary btn-sm" title="Recibo disponível após marcar como paga" disabled style="opacity: .6; cursor: not-allowed;">
+                                    <i class="fas fa-print"></i>
+                                </button>
+                                <button type="button" class="btn btn-secondary btn-sm" title="Recibo disponível após marcar como paga" disabled style="opacity: .6; cursor: not-allowed;">
                                     <i class="fas fa-paper-plane"></i>
                                 </button>
-                            </form>
+                                @endif
+                                @if($invoice->status !== 'paid')
+                                <form action="{{ route('invoices.paid', $invoice) }}" method="POST" style="display: inline;">
+                                    @csrf
+                                    <button type="submit" class="btn btn-success btn-sm" title="Marcar como paga">
+                                        <i class="fas fa-check"></i>
+                                    </button>
+                                </form>
+                                @else
+                                <form action="{{ route('invoices.unpaid', $invoice) }}" method="POST" style="display: inline;">
+                                    @csrf
+                                    <button type="submit" class="btn btn-danger btn-sm" title="Remover pagamento">
+                                        <i class="fas fa-undo"></i>
+                                    </button>
+                                </form>
+                                @endif
                             @else
-                            <button type="button" class="btn btn-secondary btn-sm" title="Recibo disponível após marcar como paga" disabled style="opacity: .6; cursor: not-allowed;">
-                                <i class="fas fa-print"></i>
-                            </button>
-                            <button type="button" class="btn btn-secondary btn-sm" title="Recibo disponível após marcar como paga" disabled style="opacity: .6; cursor: not-allowed;">
-                                <i class="fas fa-paper-plane"></i>
-                            </button>
-                            @endif
-                            @if($invoice->status !== 'paid')
-                            <form action="{{ route('invoices.paid', $invoice) }}" method="POST" style="display: inline;">
-                                @csrf
-                                <button type="submit" class="btn btn-success btn-sm" title="Marcar como paga">
-                                    <i class="fas fa-check"></i>
-                                </button>
-                            </form>
-                            @else
-                            <form action="{{ route('invoices.unpaid', $invoice) }}" method="POST" style="display: inline;">
-                                @csrf
-                                <button type="submit" class="btn btn-danger btn-sm" title="Remover pagamento">
-                                    <i class="fas fa-undo"></i>
-                                </button>
-                            </form>
+                                @if($canSendInvoices)
+                                    <a href="{{ route('invoices.pdf', $invoice) }}" class="btn btn-secondary btn-sm" title="Baixar PDF">
+                                        <i class="fas fa-file-pdf"></i>
+                                    </a>
+                                @endif
+
+                                @if($invoice->status === 'paid')
+                                    <form action="{{ route('invoices.send-receipt', $invoice) }}" method="POST" style="display: inline;">
+                                        @csrf
+                                        <button type="submit" class="btn btn-secondary btn-sm"
+                                                title="{{ $guardianEmail ? 'Enviar recibo por e-mail' : 'Responsável sem e-mail cadastrado' }}"
+                                                @disabled(!$guardianEmail || !$canSendInvoices)>
+                                            <i class="fas fa-paper-plane"></i>
+                                        </button>
+                                    </form>
+                                @else
+                                    <form action="{{ route('invoices.send-pdf', $invoice) }}" method="POST" style="display: inline;">
+                                        @csrf
+                                        <button type="submit" class="btn btn-secondary btn-sm"
+                                                title="{{ $guardianEmail ? 'Enviar fatura por e-mail' : 'Responsável sem e-mail cadastrado' }}"
+                                                @disabled(!$guardianEmail || !$canSendInvoices)>
+                                            <i class="fas fa-paper-plane"></i>
+                                        </button>
+                                    </form>
+                                @endif
+
+                                @if($invoice->status === 'draft')
+                                    <form action="{{ route('invoices.recalculate', $invoice) }}" method="POST" style="display: inline;">
+                                        @csrf
+                                        <button type="submit" class="btn btn-secondary btn-sm" title="Recalcular (horas extras)">
+                                            <i class="fas fa-sync"></i>
+                                        </button>
+                                    </form>
+                                @endif
+
+                                @if($invoice->status !== 'paid')
+                                    <form action="{{ route('invoices.paid', $invoice) }}" method="POST" style="display: inline;">
+                                        @csrf
+                                        <button type="submit" class="btn btn-success btn-sm" title="Marcar como paga" @disabled(!$canSendInvoices)>
+                                            <i class="fas fa-check"></i>
+                                        </button>
+                                    </form>
+                                @endif
                             @endif
                         </div>
                     </td>
                 </tr>
                 @empty
                 <tr>
-                    <td colspan="8">
+                    <td colspan="{{ $canViewValues ? 8 : 6 }}">
                         <div class="empty-state">
                             <i class="fas fa-file-invoice"></i>
                             <h3>Nenhuma fatura encontrada</h3>
@@ -208,3 +271,5 @@
     </div>
 </div>
 @endsection
+
+

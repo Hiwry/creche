@@ -1,4 +1,4 @@
-@extends('layouts.app')
+﻿@extends('layouts.app')
 
 @section('content')
 <div class="action-bar">
@@ -13,7 +13,7 @@
     </div>
     <div class="action-bar-right">
         <a href="{{ route('students.income-tax', ['student' => $student->id, 'year' => now()->subYear()->year]) }}" class="btn btn-secondary">
-            <i class="fas fa-file-lines"></i> Declaração IR
+            <i class="fas fa-file-lines"></i> DeclaraÃ§Ã£o IR
         </a>
         <a href="{{ route('students.edit', $student) }}" class="btn btn-warning">
             <i class="fas fa-edit"></i> Editar
@@ -43,7 +43,7 @@
                 <p style="color: #10B981; font-weight: 600; font-size: 1.1rem; margin-top: 5px;">
                     R$ {{ number_format($student->monthly_fee, 2, ',', '.') }}
                     <span style="font-size: 0.8rem; font-weight: 400; color: #6B7280;">
-                    /mês (Vencimento dia {{ $student->due_day ?? \App\Models\Setting::getPaymentDueDay() }})
+                    /mÃªs (Vencimento dia {{ $student->due_day ?? \App\Models\Setting::getPaymentDueDay() }})
                     </span>
                 </p>
                 @endif
@@ -68,7 +68,7 @@
         
         @if($student->observations)
         <div>
-            <span style="font-size: 0.85rem; color: #6B7280;">Observações:</span>
+            <span style="font-size: 0.85rem; color: #6B7280;">ObservaÃ§Ãµes:</span>
             <p style="margin-top: 5px;">{{ $student->observations }}</p>
         </div>
         @endif
@@ -79,7 +79,7 @@
         <div class="card-header">
             <h3 class="card-title">
                 <i class="fas fa-user" style="color: #10B981; margin-right: 10px;"></i>
-                Responsável
+                ResponsÃ¡vel
             </h3>
         </div>
         
@@ -119,7 +119,7 @@
             @endif
         </div>
         @else
-        <p style="color: #9CA3AF;">Nenhum responsável cadastrado</p>
+        <p style="color: #9CA3AF;">Nenhum responsÃ¡vel cadastrado</p>
         @endif
     </div>
 </div>
@@ -136,12 +136,17 @@
         </a>
     </div>
     
+    @php
+        $canViewValues = auth()->user()->canViewInvoiceValues();
+    @endphp
     <div class="table-container">
         <table>
             <thead>
                 <tr>
-                    <th>Referência</th>
+                    <th>ReferÃªncia</th>
+                    @if($canViewValues)
                     <th>Valor</th>
+                    @endif
                     <th>Status</th>
                     <th>Vencimento</th>
                 </tr>
@@ -150,7 +155,9 @@
                 @forelse($student->invoices->take(6) as $invoice)
                 <tr>
                     <td>{{ $invoice->reference }}</td>
+                    @if($canViewValues)
                     <td>{{ $invoice->formatted_total }}</td>
+                    @endif
                     <td>
                         <span class="badge badge-{{ $invoice->status_color }}">{{ $invoice->status_label }}</span>
                     </td>
@@ -158,7 +165,7 @@
                 </tr>
                 @empty
                 <tr>
-                    <td colspan="4" style="text-align: center; color: #9CA3AF;">
+                    <td colspan="{{ $canViewValues ? 4 : 3 }}" style="text-align: center; color: #9CA3AF;">
                         Nenhuma fatura registrada
                     </td>
                 </tr>
@@ -173,21 +180,21 @@
         <div class="card-header">
             <h3 class="card-title">
                 <i class="fas fa-heartbeat" style="color: #EF4444; margin-right: 10px;"></i>
-                Informações de Saúde
+                InformaÃ§Ãµes de SaÃºde
             </h3>
         </div>
         
         <div class="grid grid-3" style="margin-bottom: 20px;">
             <div>
-                <span style="font-size: 0.85rem; color: #6B7280;">Tipo Sanguíneo:</span>
+                <span style="font-size: 0.85rem; color: #6B7280;">Tipo SanguÃ­neo:</span>
                 <div style="font-weight: 500;">{{ $student->health?->blood_type ?? '-' }}</div>
             </div>
             <div>
-                <span style="font-size: 0.85rem; color: #6B7280;">Plano de Saúde:</span>
-                <div style="font-weight: 500;">{{ $student->health?->health_plan_name ?? 'Não informado' }}</div>
+                <span style="font-size: 0.85rem; color: #6B7280;">Plano de SaÃºde:</span>
+                <div style="font-weight: 500;">{{ $student->health?->health_plan_name ?? 'NÃ£o informado' }}</div>
             </div>
             <div>
-                <span style="font-size: 0.85rem; color: #6B7280;">Nº do Plano:</span>
+                <span style="font-size: 0.85rem; color: #6B7280;">NÂº do Plano:</span>
                 <div style="font-weight: 500;">{{ $student->health?->health_plan_number ?? '-' }}</div>
             </div>
         </div>
@@ -203,20 +210,20 @@
             @if($student->health && $student->health->dietary_restrictions)
             <div class="alert alert-warning" style="margin: 0;">
                 <i class="fas fa-utensils"></i>
-                <strong>Restrições Alimentares:</strong> {{ $student->health->dietary_restrictions }}
+                <strong>RestriÃ§Ãµes Alimentares:</strong> {{ $student->health->dietary_restrictions }}
             </div>
             @endif
 
             @if($student->health && $student->health->medical_conditions)
             <div class="alert alert-info" style="margin: 0; margin-top: 10px; grid-column: 1 / -1;">
                 <i class="fas fa-notes-medical"></i>
-                <strong>Condições e Observações:</strong> {{ $student->health->medical_conditions }}
+                <strong>CondiÃ§Ãµes e ObservaÃ§Ãµes:</strong> {{ $student->health->medical_conditions }}
             </div>
             @endif
         </div>
 
         <div style="margin-top: 20px;">
-            <span style="font-size: 0.85rem; color: #6B7280;">Contato de Emergência:</span>
+            <span style="font-size: 0.85rem; color: #6B7280;">Contato de EmergÃªncia:</span>
             <div style="font-weight: 500;">
                 {{ $student->health?->emergency_contact_name ?? '-' }}
                 {{ $student->health?->emergency_contact_phone ? ' - ' . $student->health->emergency_contact_phone : '' }}
@@ -243,7 +250,7 @@
                         <th>Nome</th>
                         <th>Tipo</th>
                         <th>Data</th>
-                        <th>Ações</th>
+                        <th>AÃ§Ãµes</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -282,7 +289,7 @@
             <form action="{{ route('students.documents.upload', $student) }}" method="POST" enctype="multipart/form-data">
                 @csrf
                 <div class="form-group" style="margin-top:15px;">
-                    <label>Título do Documento</label>
+                    <label>TÃ­tulo do Documento</label>
                     <input type="text" name="name" class="form-control" required>
                 </div>
                 <div class="form-group" style="margin-top:15px;">
@@ -351,11 +358,11 @@
             <div class="card-header">
                 <h3 class="card-title">
                     <i class="fas fa-history" style="color: #F59E0B; margin-right: 10px;"></i>
-                    Histórico de Presença
+                    HistÃ³rico de PresenÃ§a
                 </h3>
                 <div style="display: flex; align-items: center; gap: 10px;">
                     <span class="badge badge-warning">Extra Total: R$ {{ number_format($extraHoursSummary, 2, ',', '.') }}</span>
-                    <a href="{{ route('attendance.extra-hours', ['student_id' => $student->id]) }}" class="btn btn-sm btn-secondary" title="Ver relatório detalhado">
+                    <a href="{{ route('attendance.extra-hours', ['student_id' => $student->id]) }}" class="btn btn-sm btn-secondary" title="Ver relatÃ³rio detalhado">
                         <i class="fas fa-expand-alt"></i> Expandir
                     </a>
                 </div>
@@ -367,7 +374,7 @@
                             <tr>
                                 <th>Data</th>
                                 <th>Entrada</th>
-                                <th>Saída</th>
+                                <th>SaÃ­da</th>
                                 <th>Extra</th>
                             </tr>
                         </thead>
@@ -410,10 +417,11 @@
                 </div>
                 <div style="margin-top: 15px; text-align: center;">
                     <a href="{{ route('attendance.index', ['search' => $student->name]) }}" class="btn btn-secondary btn-sm">
-                        Registrar no Diário
+                        Registrar no DiÃ¡rio
                     </a>
                 </div>
             </div>
         </div>
     </div>
 @endsection
+

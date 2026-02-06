@@ -1,4 +1,4 @@
-@extends('layouts.app')
+﻿@extends('layouts.app')
 
 @section('content')
 @php
@@ -7,12 +7,15 @@
     if (!$bulkMonth) {
         $bulkMonth = date('n');
     }
+    $canManageFinancial = auth()->user()->canManageFinancial();
+    $canViewValues = auth()->user()->canViewInvoiceValues();
 @endphp
 <div class="action-bar">
     <div class="action-bar-left">
         <h1 style="font-size: 1.5rem; font-weight: 600;">Faturas</h1>
     </div>
     <div class="action-bar-right">
+        @if($canManageFinancial)
         <form action="{{ route('invoices.bulk-generate') }}" method="POST" class="filter-form" style="margin: 0;">
             @csrf
             <select name="year" class="form-control">
@@ -29,6 +32,7 @@
                 <i class="fas fa-sync"></i> Gerar Faturas do Mês
             </button>
         </form>
+        @endif
     </div>
 </div>
 
@@ -73,7 +77,9 @@
                     <th>Nº</th>
                     <th>Aluno</th>
                     <th>Referência</th>
+                    @if($canViewValues)
                     <th>Total</th>
+                    @endif
                     <th>Status</th>
                     <th>Vencimento</th>
                     <th>Ações</th>
@@ -87,7 +93,9 @@
                         <div style="font-weight: 500;">{{ $invoice->student->name }}</div>
                     </td>
                     <td>{{ $invoice->reference }}</td>
+                    @if($canViewValues)
                     <td style="font-weight: 600;">{{ $invoice->formatted_total }}</td>
+                    @endif
                     <td>
                         <span class="badge badge-{{ $invoice->status_color }}">
                             {{ $invoice->status_label }}
@@ -96,6 +104,7 @@
                     <td>{{ $invoice->due_date ? $invoice->due_date->format('d/m/Y') : '-' }}</td>
                     <td>
                         <div style="display: flex; gap: 5px;">
+                            @if($canManageFinancial)
                             <a href="{{ route('invoices.show', $invoice) }}" class="btn btn-secondary btn-sm" title="Ver">
                                 <i class="fas fa-eye"></i>
                             </a>
@@ -117,12 +126,13 @@
                                 </button>
                             </form>
                             @endif
+                            @endif
                         </div>
                     </td>
                 </tr>
                 @empty
                 <tr>
-                    <td colspan="7">
+                    <td colspan="{{ $canViewValues ? 7 : 6 }}">
                         <div class="empty-state">
                             <i class="fas fa-file-invoice"></i>
                             <h3>Nenhuma fatura encontrada</h3>

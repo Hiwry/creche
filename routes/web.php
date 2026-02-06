@@ -82,6 +82,7 @@ Route::middleware(['auth'])->group(function () {
         Route::get('/{invoice}', [InvoiceController::class, 'show'])->name('show');
         Route::get('/{invoice}/pdf', [InvoiceController::class, 'downloadPdf'])->name('pdf');
         Route::get('/{invoice}/print', [InvoiceController::class, 'printPdf'])->name('print');
+        Route::post('/{invoice}/send-pdf', [InvoiceController::class, 'sendInvoicePdf'])->name('send-pdf');
         Route::post('/{invoice}/send-receipt', [InvoiceController::class, 'sendReceipt'])->name('send-receipt');
         Route::post('/{invoice}/send', [InvoiceController::class, 'markAsSent'])->name('send');
         Route::post('/{invoice}/paid', [InvoiceController::class, 'markAsPaid'])->name('paid');
@@ -106,6 +107,9 @@ Route::middleware(['auth'])->group(function () {
         Route::get('/', [SettingController::class, 'index'])->name('index');
         Route::post('/', [SettingController::class, 'update'])->name('update');
         Route::post('/logo', [SettingController::class, 'uploadLogo'])->name('upload-logo');
+        Route::post('/users', [SettingController::class, 'storeUser'])->name('users.store');
+        Route::put('/users/{user}', [SettingController::class, 'updateUser'])->name('users.update');
+        Route::post('/password', [SettingController::class, 'updatePassword'])->name('password');
     });
 
     // School Materials

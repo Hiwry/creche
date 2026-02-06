@@ -145,6 +145,46 @@ class User extends Authenticatable
     }
 
     /**
+     * Check if user can access invoices list/actions.
+     */
+    public function canAccessInvoices(): bool
+    {
+        return in_array($this->role, [self::ROLE_ADMIN, self::ROLE_FINANCIAL, self::ROLE_ATTENDANT, self::ROLE_TEACHER]);
+    }
+
+    /**
+     * Check if user can view invoice values.
+     */
+    public function canViewInvoiceValues(): bool
+    {
+        return in_array($this->role, [self::ROLE_ADMIN, self::ROLE_FINANCIAL, self::ROLE_ATTENDANT]);
+    }
+
+    /**
+     * Check if user can send invoices/receipts.
+     */
+    public function canSendInvoices(): bool
+    {
+        return in_array($this->role, [self::ROLE_ADMIN, self::ROLE_FINANCIAL, self::ROLE_ATTENDANT, self::ROLE_TEACHER]);
+    }
+
+    /**
+     * Check if user can download invoice PDF.
+     */
+    public function canDownloadInvoicePdf(): bool
+    {
+        return in_array($this->role, [self::ROLE_ADMIN, self::ROLE_FINANCIAL, self::ROLE_ATTENDANT, self::ROLE_TEACHER]);
+    }
+
+    /**
+     * Check if user can mark invoices as paid.
+     */
+    public function canMarkInvoicePaid(): bool
+    {
+        return in_array($this->role, [self::ROLE_ADMIN, self::ROLE_FINANCIAL, self::ROLE_ATTENDANT, self::ROLE_TEACHER]);
+    }
+
+    /**
      * Check if user can manage settings.
      */
     public function canManageSettings(): bool

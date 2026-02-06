@@ -18,7 +18,7 @@
                 <div class="logo">
                     <i class="fas fa-graduation-cap"></i>
                     <span>SchoolHub</span>
-                    <span class="version">v1.0</span>
+                    <span class="version">v2.2</span>
                 </div>
             </div>
             
@@ -46,12 +46,14 @@
                         <span>Entrada & Saída</span>
                     </a>
                     
-                    @if(auth()->user()->canManageFinancial())
+                    @if(auth()->user()->canAccessInvoices())
                     <a href="{{ route('financial.index') }}" class="nav-link {{ request()->routeIs('financial.*') ? 'active' : '' }}">
                         <i class="fas fa-dollar-sign"></i>
                         <span>Faturas</span>
                     </a>
-                    
+                    @endif
+
+                    @if(auth()->user()->canManageFinancial())
                     <a href="{{ route('expenses.index') }}" class="nav-link {{ request()->routeIs('expenses.*') ? 'active' : '' }}">
                         <i class="fas fa-receipt"></i>
                         <span>Despesas</span>

@@ -191,6 +191,12 @@ class InvoiceController extends Controller
      */
     public function show(Invoice $invoice)
     {
+        if (!auth()->user()?->canViewInvoiceValues()) {
+            return redirect()
+                ->route('financial.index')
+                ->with('error', 'Você não tem permissão para visualizar valores da fatura.');
+        }
+
         $invoice->load(['student.guardian', 'items']);
         
         return view('invoices.show', compact('invoice'));
@@ -198,6 +204,11 @@ class InvoiceController extends Controller
     
     public function downloadPdf(Invoice $invoice)
     {
+        if (!auth()->user()?->canDownloadInvoicePdf()) {
+            return redirect()
+                ->route('financial.index')
+                ->with('error', 'Você não tem permissão para baixar a fatura.');
+        }
         ini_set('memory_limit', '256M');
         set_time_limit(300);
 
@@ -221,6 +232,12 @@ class InvoiceController extends Controller
      */
     public function printPdf(Invoice $invoice)
     {
+        if (!auth()->user()?->canViewInvoiceValues()) {
+            return redirect()
+                ->route('financial.index')
+                ->with('error', 'Você não tem permissão para visualizar valores da fatura.');
+        }
+
         ini_set('memory_limit', '256M');
         set_time_limit(300);
 
@@ -241,6 +258,10 @@ class InvoiceController extends Controller
      */
     public function sendReceipt(Invoice $invoice)
     {
+        if (!auth()->user()?->canSendInvoices()) {
+            return back()->with('error', 'Você não tem permissão para enviar recibos.');
+        }
+
         $invoice->load(['student.guardian', 'items']);
 
         if ($invoice->status !== 'paid') {
@@ -275,6 +296,47 @@ class InvoiceController extends Controller
     }
     
     /**
+     * Send invoice by e-mail with attached PDF.
+     */
+    public function sendInvoicePdf(Invoice $invoice)
+    {
+        if (!auth()->user()?->canSendInvoices()) {
+            return back()->with('error', 'Você não tem permissão para enviar faturas.');
+        }
+
+        $invoice->load(['student.guardian', 'items']);
+
+        $recipientEmail = $invoice->student?->guardian?->email;
+        $recipientName = $invoice->student?->guardian?->name ?? $invoice->student?->name;
+
+        if (!$recipientEmail) {
+            return back()->with('error', 'O responsável deste aluno não possui e-mail cadastrado.');
+        }
+
+        try {
+            [$pdf, $filename, $settings] = $this->buildInvoicePdf($invoice);
+            $companyName = $settings['company_name'] ?? config('app.name');
+            $pdfContent = $pdf->output();
+
+            Mail::send('emails.invoice-pdf', [
+                'invoice' => $invoice,
+                'companyName' => $companyName,
+            ], function ($message) use ($recipientEmail, $recipientName, $filename, $pdfContent, $invoice, $companyName) {
+                $message->to($recipientEmail, $recipientName)
+                    ->subject("Fatura {$invoice->invoice_number} - {$companyName}")
+                    ->attachData($pdfContent, $filename, ['mime' => 'application/pdf']);
+            });
+
+            if ($invoice->status === 'draft') {
+                $invoice->update(['status' => 'sent']);
+            }
+
+            return back()->with('success', "Fatura enviada para {$recipientEmail}.");
+        } catch (\Throwable $e) {
+            return back()->with('error', 'Erro ao enviar fatura: ' . $e->getMessage());
+        }
+    }
+    /**
      * Mark invoice as sent.
      */
     public function markAsSent(Invoice $invoice)
@@ -289,6 +351,10 @@ class InvoiceController extends Controller
      */
     public function markAsPaid(Invoice $invoice)
     {
+        if (!auth()->user()?->canMarkInvoicePaid()) {
+            return back()->with('error', 'Você não tem permissão para marcar faturas como pagas.');
+        }
+
         $invoice->update([
             'status' => 'paid',
             'paid_at' => Carbon::today(),
