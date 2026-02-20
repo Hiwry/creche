@@ -1,0 +1,195 @@
+@extends('layouts.app')
+
+@section('content')
+<div class="action-bar">
+    <div class="action-bar-left">
+        <h1 style="font-size: 1.5rem; font-weight: 600;">Dashboard</h1>
+        <span style="color: #6B7280; margin-left: 10px;">
+            {{ $periodLabel }}
+        </span>
+    </div>
+    <div class="action-bar-right">
+        <form action="{{ route('dashboard') }}" method="GET" class="filter-form">
+            <select name="period" class="form-control">
+                <option value="today" {{ ($period ?? '') === 'today' ? 'selected' : '' }}>Hoje</option>
+                <option value="last_7_days" {{ ($period ?? '') === 'last_7_days' ? 'selected' : '' }}>Últimos 7 dias</option>
+                <option value="this_month" {{ ($period ?? '') === 'this_month' ? 'selected' : '' }}>Mês Atual</option>
+                <option value="last_month" {{ ($period ?? '') === 'last_month' ? 'selected' : '' }}>Mês Anterior</option>
+                <option value="custom" {{ ($period ?? '') === 'custom' ? 'selected' : '' }}>Personalizado</option>
+            </select>
+            <input type="date" name="start_date" class="form-control" value="{{ $startDate->format('Y-m-d') }}">
+            <input type="date" name="end_date" class="form-control" value="{{ $endDate->format('Y-m-d') }}">
+            <button type="submit" class="btn btn-secondary">
+                <i class="fas fa-filter"></i> Filtrar
+            </button>
+            <a href="{{ route('dashboard') }}" class="btn btn-light">Limpar</a>
+        </form>
+    </div>
+</div>
+
+<!-- Stats Cards -->
+<div class="stats-grid">
+    <div class="stat-card yellow">
+        <div class="stat-icon">
+            <i class="fas fa-user-graduate"></i>
+        </div>
+        <div class="stat-content">
+            <div class="stat-value">{{ $activeStudents }}</div>
+            <div class="stat-label">Alunos Ativos</div>
+        </div>
+    </div>
+    
+    <div class="stat-card green">
+        <div class="stat-icon">
+            <i class="fas fa-check-circle"></i>
+        </div>
+        <div class="stat-content">
+            <div class="stat-value">R$ {{ number_format($monthlyRevenue, 2, ',', '.') }}</div>
+            <div class="stat-label">Mensalidades Pagas (Período)</div>
+        </div>
+    </div>
+    
+    <div class="stat-card orange">
+        <div class="stat-icon">
+            <i class="fas fa-exclamation-circle"></i>
+        </div>
+        <div class="stat-content">
+            <div class="stat-value">{{ $pendingFees }} alunos</div>
+            <div class="stat-label">Pendências (Período)</div>
+        </div>
+    </div>
+    
+    <div class="stat-card purple">
+        <div class="stat-icon">
+            <i class="fas fa-clock"></i>
+        </div>
+        <div class="stat-content">
+            <div class="stat-value">R$ {{ number_format($extraHoursData->total_charge ?? 0, 2, ',', '.') }}</div>
+            <div class="stat-label">Horas Extras (Período)</div>
+        </div>
+    </div>
+</div>
+
+<!-- Charts Row -->
+<div class="charts-grid">
+    <!-- Payment Status Chart -->
+    <div class="card">
+        <div class="card-header">
+            <h3 class="card-title">Status dos Pagamentos</h3>
+            <span style="font-size: 0.8rem; color: #6B7280;">{{ $periodLabel }}</span>
+        </div>
+        <div class="card-body">
+            <div class="payment-status-container">
+                <div class="chart-container">
+                    <svg viewBox="0 0 36 36" class="circular-chart">
+                        <path d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+                               fill="none" stroke="#E5E7EB" stroke-width="3"></path>
+                        <path d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+                               fill="none" stroke="#7C3AED" stroke-width="3"
+                               stroke-dasharray="{{ $paymentStatusData['paid_percentage'] }}, 100"></path>
+                    </svg>
+                    <div class="chart-info">
+                        <div class="percentage">{{ $paymentStatusData['paid_percentage'] }}%</div>
+                        <div class="label">{{ $paymentStatusData['paid'] }} alunos</div>
+                    </div>
+                </div>
+                <div class="legend-container">
+                    <div class="legend-item">
+                        <span class="dot paid"></span>
+                        <span class="legend-label">{{ $paymentStatusData['paid_percentage'] }}% Pagos</span>
+                        <span class="legend-value">{{ $paymentStatusData['paid'] }} alunos</span>
+                    </div>
+                    <div class="legend-item">
+                        <span class="dot pending"></span>
+                        <span class="legend-label">{{ $paymentStatusData['pending_percentage'] }}% Pendentes</span>
+                        <span class="legend-value">{{ $paymentStatusData['pending'] }} alunos</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Extra Hours Chart -->
+    <div class="card">
+        <div class="card-header">
+            <h3 class="card-title">Horas Extras</h3>
+            <span style="font-size: 0.8rem; color: #6B7280;">{{ $periodLabel }}</span>
+        </div>
+        <div class="card-body">
+            <div class="bar-chart-container">
+                @foreach($extraHoursChartData as $day)
+                <div class="bar-item">
+                    <div class="bar-value" style="height: {{ max(5, min(100, $day['hours'] * 20)) }}px; background: {{ $loop->last ? '#FFE066' : '#7C3AED' }};">
+                    </div>
+                    <span class="bar-label">{{ $day['label'] ?? $day['day'] }}</span>
+                </div>
+                @endforeach
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Today's Schedule and Recent Activities -->
+<div class="grid grid-2">
+    <!-- Today's Schedule -->
+    <div class="card">
+        <div class="card-header">
+            <h3 class="card-title">
+                <i class="fas fa-calendar-day" style="color: #7C3AED; margin-right: 10px;"></i>
+                Agenda de Hoje - {{ now()->format('d/m') }}
+            </h3>
+        </div>
+        <div class="card-body">
+            @forelse($todaySchedule as $class)
+            <div style="display: flex; align-items: center; gap: 15px; padding: 12px 0; border-bottom: 1px solid #E5E7EB;">
+                <span style="font-weight: 600; color: #7C3AED; min-width: 50px;">
+                    {{ \Carbon\Carbon::parse($class->start_time)->format('H:i') }}
+                </span>
+                <span>{{ $class->name }}</span>
+            </div>
+            @empty
+            <div class="empty-state" style="padding: 30px;">
+                <i class="fas fa-calendar-times"></i>
+                <p>Nenhuma turma programada para hoje</p>
+            </div>
+            @endforelse
+            
+            @if($todaySchedule->count() > 0)
+            <div style="text-align: center; margin-top: 15px;">
+                <a href="{{ route('attendance.index') }}" class="btn btn-warning btn-sm">Ver Mais</a>
+            </div>
+            @endif
+        </div>
+    </div>
+    
+    <!-- Recent Payments -->
+    <div class="card">
+        <div class="card-header">
+            <h3 class="card-title">
+                <i class="fas fa-bell" style="color: #F59E0B; margin-right: 10px;"></i>
+                Pagamentos do Período
+            </h3>
+        </div>
+        <div class="card-body">
+            @forelse($recentPayments as $payment)
+            <div style="display: flex; align-items: center; gap: 15px; padding: 12px 0; border-bottom: 1px solid #E5E7EB;">
+                <img src="{{ $payment->student->guardian->avatar_url ?? 'https://ui-avatars.com/api/?name=' . urlencode($payment->student->name) }}" 
+                     alt="" style="width: 40px; height: 40px; border-radius: 50%;">
+                <div style="flex: 1;">
+                    <div style="font-weight: 500;">{{ $payment->student->name }}</div>
+                    <div style="font-size: 0.8rem; color: #6B7280;">Pagamento confirmado</div>
+                </div>
+                <span style="font-size: 0.75rem; color: #9CA3AF;">
+                    {{ $payment->created_at->diffForHumans() }}
+                </span>
+            </div>
+            @empty
+            <div class="empty-state" style="padding: 30px;">
+                <i class="fas fa-receipt"></i>
+                <p>Nenhum pagamento recente</p>
+            </div>
+            @endforelse
+        </div>
+    </div>
+</div>
+@endsection
