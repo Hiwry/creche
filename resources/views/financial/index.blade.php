@@ -7,6 +7,7 @@
     $canManageFinancial = auth()->user()->canManageFinancial();
     $canViewValues = auth()->user()->canViewInvoiceValues();
     $canSendInvoices = auth()->user()->canSendInvoices();
+    $showFinancialSummary = $canViewValues && !auth()->user()->isTeacher();
 @endphp
 <div class="action-bar">
     <div class="action-bar-left">
@@ -38,7 +39,7 @@
 </div>
 
 <!-- Summary Cards -->
-@if($canViewValues)
+@if($showFinancialSummary)
 <div class="stats-grid" style="margin-bottom: 20px;">
     <div class="stat-card green">
         <div class="stat-icon"><i class="fas fa-check-circle"></i></div>
@@ -64,7 +65,7 @@
         </div>
     </div>
 </div>
-@else
+@elseif(!$canViewValues)
 <div class="card" style="margin-bottom: 20px;">
     <div style="padding: 14px 16px; color: #6B7280;">
         Você tem acesso apenas ao status das faturas.
@@ -277,4 +278,3 @@
     </div>
 </div>
 @endsection
-

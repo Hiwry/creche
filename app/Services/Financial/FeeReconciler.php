@@ -60,14 +60,9 @@ class FeeReconciler
                      continue;
                 }
 
-                // If no payments and no invoice, we'll mark as paid (reconciled) based on user request "tá tudo paga"
-                $fee->amount_paid = $fee->net_amount; // Assume fully paid
-                $fee->status = 'paid';
-                $fee->notes = trim($fee->notes . " [Reconciliação: Marcado como pago pois fatura não foi encontrada]");
-                $fee->save();
-                
-                $results['fixed']++;
-                $results['details'][] = "Fee {$fee->month}/{$fee->year} marked as PAID (No active invoice found)";
+                // Do not force paid status without payment evidence.
+                // Keep fee open so it can be billed correctly on next invoice generation/recalculation.
+                $results['details'][] = "Fee {$fee->month}/{$fee->year} kept as {$fee->status} (No active invoice and no payment evidence)";
             }
         }
 

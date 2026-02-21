@@ -182,11 +182,21 @@
             </thead>
             <tbody>
                 @forelse($invoice->items as $item)
+                @php
+                    $itemDescription = $item->description;
+                    if ($item->type === 'monthly_fee') {
+                        $suffix = '';
+                        if (preg_match('/-\s*(.+)$/u', $itemDescription, $m)) {
+                            $suffix = ' - ' . trim($m[1]);
+                        }
+                        $itemDescription = 'Mensalidade ' . $invoice->reference . $suffix;
+                    }
+                @endphp
                 <tr>
                     <td>
                         <span class="badge badge-info">{{ $item->type_label }}</span>
                     </td>
-                    <td>{{ $item->description }}</td>
+                    <td>{{ $itemDescription }}</td>
                     <td>{{ number_format($item->quantity, 0) }}</td>
                     <td>{{ $item->formatted_unit_price }}</td>
                     <td style="font-weight: 500;">{{ $item->formatted_total }}</td>

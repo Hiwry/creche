@@ -262,6 +262,36 @@
                            value="{{ old('guardian_email', $student->guardian->email ?? '') }}">
                 </div>
             </div>
+
+            <div class="form-group">
+                <label class="form-label">Endereço</label>
+                <input type="text" name="guardian_address" class="form-control"
+                       value="{{ old('guardian_address', $student->guardian->address ?? '') }}"
+                       placeholder="Rua, avenida, etc.">
+            </div>
+
+            <div class="grid grid-3">
+                <div class="form-group">
+                    <label class="form-label">Cidade</label>
+                    <input type="text" name="guardian_city" class="form-control"
+                           value="{{ old('guardian_city', $student->guardian->city ?? '') }}"
+                           placeholder="Cidade">
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">UF</label>
+                    <input type="text" name="guardian_state" class="form-control"
+                           value="{{ old('guardian_state', $student->guardian->state ?? '') }}"
+                           placeholder="AL">
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">CEP</label>
+                    <input type="text" name="guardian_cep" class="form-control"
+                           value="{{ old('guardian_cep', $student->guardian->cep ?? '') }}"
+                           placeholder="00000-000">
+                </div>
+            </div>
         </div>
     </div>
     

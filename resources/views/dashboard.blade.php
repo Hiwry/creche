@@ -1,6 +1,9 @@
 @extends('layouts.app')
 
 @section('content')
+@php
+    $showPaidRevenueCard = !auth()->user()->isTeacher();
+@endphp
 <div class="action-bar">
     <div class="action-bar-left">
         <h1 style="font-size: 1.5rem; font-weight: 600;">Dashboard</h1>
@@ -39,15 +42,17 @@
         </div>
     </div>
     
-    <div class="stat-card green">
-        <div class="stat-icon">
-            <i class="fas fa-check-circle"></i>
+    @if($showPaidRevenueCard)
+        <div class="stat-card green">
+            <div class="stat-icon">
+                <i class="fas fa-check-circle"></i>
+            </div>
+            <div class="stat-content">
+                <div class="stat-value">R$ {{ number_format($monthlyRevenue, 2, ',', '.') }}</div>
+                <div class="stat-label">Mensalidades Pagas (Período)</div>
+            </div>
         </div>
-        <div class="stat-content">
-            <div class="stat-value">R$ {{ number_format($monthlyRevenue, 2, ',', '.') }}</div>
-            <div class="stat-label">Mensalidades Pagas (Período)</div>
-        </div>
-    </div>
+    @endif
     
     <div class="stat-card orange">
         <div class="stat-icon">

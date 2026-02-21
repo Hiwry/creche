@@ -94,6 +94,10 @@ class StudentController extends Controller
             'guardian_phone' => 'nullable|string|max:20',
             'guardian_whatsapp' => 'nullable|string|max:20',
             'guardian_email' => 'nullable|email|max:255',
+            'guardian_address' => 'nullable|string|max:255',
+            'guardian_city' => 'nullable|string|max:100',
+            'guardian_state' => 'nullable|string|max:10',
+            'guardian_cep' => 'nullable|string|max:15',
             // Class enrollment
             'class_id' => 'nullable|exists:classes,id',
             // Photo
@@ -332,12 +336,30 @@ class StudentController extends Controller
             'guardian_whatsapp' => 'nullable|string|max:20',
             'guardian_email' => 'nullable|email|max:255',
             'address' => 'nullable|string|max:500',
+            'guardian_address' => 'nullable|string|max:255',
+            'guardian_city' => 'nullable|string|max:100',
+            'guardian_state' => 'nullable|string|max:10',
+            'guardian_cep' => 'nullable|string|max:15',
         ]);
         
         DB::beginTransaction();
         
         try {
-            $data = $request->except(['photo', 'authorized_pickups', 'authorized_pickups_text', 'authorized_persons', 'guardian_name', 'guardian_cpf', 'guardian_phone', 'guardian_whatsapp', 'guardian_email']);
+            $data = $request->except([
+                'photo',
+                'authorized_pickups',
+                'authorized_pickups_text',
+                'authorized_persons',
+                'guardian_name',
+                'guardian_cpf',
+                'guardian_phone',
+                'guardian_whatsapp',
+                'guardian_email',
+                'guardian_address',
+                'guardian_city',
+                'guardian_state',
+                'guardian_cep',
+            ]);
             
             // Handle authorized persons
             $authorizedPersonsIds = [];
@@ -395,6 +417,10 @@ class StudentController extends Controller
                         'phone' => $request->guardian_phone,
                         'whatsapp' => $request->guardian_whatsapp,
                         'email' => $request->guardian_email,
+                        'address' => $request->guardian_address,
+                        'city' => $request->guardian_city,
+                        'state' => $request->guardian_state,
+                        'cep' => $request->guardian_cep,
                     ]);
                     
                     // Switch current student to this guardian
@@ -408,6 +434,10 @@ class StudentController extends Controller
                         'phone' => $request->guardian_phone,
                         'whatsapp' => $request->guardian_whatsapp,
                         'email' => $request->guardian_email,
+                        'address' => $request->guardian_address,
+                        'city' => $request->guardian_city,
+                        'state' => $request->guardian_state,
+                        'cep' => $request->guardian_cep,
                     ]);
                 }
             }

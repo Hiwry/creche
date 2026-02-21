@@ -320,10 +320,20 @@
             <tbody>
                 @php $counter = 1; @endphp
                 @foreach($invoice->items as $item)
+                @php
+                    $itemDescription = $item->description;
+                    if ($item->type === 'monthly_fee') {
+                        $suffix = '';
+                        if (preg_match('/-\s*(.+)$/u', $itemDescription, $m)) {
+                            $suffix = ' - ' . trim($m[1]);
+                        }
+                        $itemDescription = 'Mensalidade ' . $invoice->reference . $suffix;
+                    }
+                @endphp
                 <tr>
                     <td class="center">{{ str_pad($counter++, 2, '0', STR_PAD_LEFT) }}</td>
                     <td class="center">{{ $item->quantity }}</td>
-                    <td>{{ $item->description }}</td>
+                    <td>{{ $itemDescription }}</td>
                     <td class="right">{{ number_format($item->unit_price, 2, ',', '.') }}</td>
                     <td class="right">{{ number_format($item->total, 2, ',', '.') }}</td>
                 </tr>
