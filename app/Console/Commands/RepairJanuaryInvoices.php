@@ -3,9 +3,11 @@
 namespace App\Console\Commands;
 
 use Illuminate\Console\Command;
-use App\Models\Student;
+use App\Models\AttendanceLog;
+use App\Models\MaterialFee;
 use App\Models\MonthlyFee;
 use App\Models\Invoice;
+use App\Models\SchoolMaterialUsage;
 use App\Models\Setting;
 use App\Support\BillingCycle;
 
@@ -16,71 +18,105 @@ class RepairJanuaryInvoices extends Command
      *
      * @var string
      */
-    protected $signature = 'app:repair-january {--force : Forçar o reparo mesmo em mensalidades que constam como pagas}';
+    protected $signature = 'app:repair-january
+                            {year=2026 : Ano de referência (YYYY)}
+                            {month=1 : Mês de referência (1-12)}
+                            {--force : Forçar o reparo mesmo em mensalidades que constam como pagas}';
 
     /**
      * The console command description.
      *
      * @var string
      */
-    protected $description = 'Repara faturas de Janeiro/2026 que ficaram zeradas, resetando mensalidades se necessário';
+    protected $description = 'Repara faturas zeradas de um mês/ano, recompondo mensalidades e itens pendentes';
 
     /**
      * Execute the console command.
      */
-    public function handle()
+    public function handle(): int
     {
-        $year = 2026;
-        $month = 1;
+        $year = (int) $this->argument('year');
+        $month = (int) $this->argument('month');
         $force = $this->option('force');
 
-        $this->info("Iniciando reparo AGGRESSIVO de faturas para 01/2026...");
+        if ($month < 1 || $month > 12) {
+            $this->error('O mês deve estar entre 1 e 12.');
+            return self::FAILURE;
+        }
 
-        $invoices = Invoice::where('year', $year)->where('month', $month)->get();
+        $this->info(sprintf(
+            'Iniciando reparo de faturas para %02d/%d...',
+            $month,
+            $year
+        ));
+
+        $invoices = Invoice::with([
+            'student.activeEnrollments.classModel',
+            'student.activeSportEnrollments.sport',
+        ])
+            ->where('year', $year)
+            ->where('month', $month)
+            ->get();
+
         $this->info("Encontradas " . $invoices->count() . " faturas.");
 
         $fixedCount = 0;
         $createdFees = 0;
+        $updatedFees = 0;
+        $reopenedFees = 0;
+        $deletedInvoices = 0;
 
         foreach ($invoices as $invoice) {
             $student = $invoice->student;
-            if (!$student) continue;
+            if (!$student) {
+                continue;
+            }
 
             $this->info("Processando Aluno: {$student->name} (ID: {$student->id})");
 
-            $monthlyFeesData = MonthlyFee::where('student_id', $student->id)
-                ->forMonth($year, $month)
-                ->get();
+            $dueDate = $this->makeDueDate(
+                $year,
+                $month,
+                (int) ($student->due_day ?? Setting::getPaymentDueDay())
+            );
 
-            // 1. Resetar se estiver impedindo a fatura de ter valor
-            foreach ($monthlyFeesData as $fee) {
-                $shouldReset = false;
-                
-                // Caso A: Está 'paid' mas não tem pagamentos reais (Ghost payment)
-                if ($fee->status === 'paid' && $fee->payments()->count() === 0) {
-                    $this->warn(" - Detectada mensalidade ID {$fee->id} como 'paga' fantasma. Resetando...");
-                    $shouldReset = true;
-                }
-                
-                // Caso B: A fatura está zerada mas a mensalidade consta como paga com pagamentos Reias.
-                // Se a fatura está 0,00 e o usuário quer consertar, precisamos resetar para recalcular.
-                if ($invoice->total <= 0 && $fee->status === 'paid' && $force) {
-                    $this->warn(" - Forçando reset da mensalidade PAGA ID {$fee->id} para corrigir fatura zerada.");
-                    $shouldReset = true;
-                }
+            // 1) Garantir mensalidades válidas para o mês/ano.
+            if ($student->activeEnrollments->isEmpty()) {
+                $resolvedAmount = $this->resolveMonthlyFeeAmount($student);
 
-                if ($shouldReset) {
-                    $fee->update([
-                        'status' => 'pending',
-                        'amount_paid' => 0,
-                    ]);
-                }
-            }
+                if ($resolvedAmount > 0) {
+                    $fee = MonthlyFee::firstOrCreate(
+                        [
+                            'student_id' => $student->id,
+                            'class_id' => null,
+                            'year' => $year,
+                            'month' => $month,
+                        ],
+                        [
+                            'amount' => $resolvedAmount,
+                            'status' => 'pending',
+                            'due_date' => $dueDate,
+                        ]
+                    );
 
-            // 2. Criar MonthlyFee se estiver faltando
-            if ($student->monthly_fee > 0) {
-                $enrollments = $student->activeEnrollments;
-                foreach ($enrollments as $enrollment) {
+                    if ($fee->wasRecentlyCreated) {
+                        $createdFees++;
+                    } elseif ((float) $fee->amount <= 0) {
+                        $fee->update([
+                            'amount' => $resolvedAmount,
+                            'due_date' => $dueDate,
+                        ]);
+                        $updatedFees++;
+                    }
+                }
+            } else {
+                foreach ($student->activeEnrollments as $enrollment) {
+                    $resolvedAmount = $this->resolveMonthlyFeeAmount($student, $enrollment->classModel);
+
+                    if ($resolvedAmount <= 0) {
+                        continue;
+                    }
+
                     $fee = MonthlyFee::firstOrCreate(
                         [
                             'student_id' => $student->id,
@@ -89,68 +125,175 @@ class RepairJanuaryInvoices extends Command
                             'month' => $month,
                         ],
                         [
-                            'amount' => $student->monthly_fee,
+                            'amount' => $resolvedAmount,
                             'status' => 'pending',
-                            'due_date' => $this->makeDueDate($year, $month, (int) ($student->due_day ?? Setting::getPaymentDueDay())),
+                            'due_date' => $dueDate,
                         ]
                     );
-                    
+
                     if ($fee->wasRecentlyCreated) {
                         $createdFees++;
-                        $this->info(" - Mensalidade criada: R$ {$fee->amount}");
-                    } else if ($fee->amount <= 0) {
-                        $fee->update(['amount' => $student->monthly_fee]);
-                        $this->info(" - Valor da mensalidade atualizado: R$ {$fee->amount}");
+                    } elseif ((float) $fee->amount <= 0) {
+                        $fee->update([
+                            'amount' => $resolvedAmount,
+                            'due_date' => $dueDate,
+                        ]);
+                        $updatedFees++;
                     }
                 }
             }
 
-            // 3. Limpar e Re-adicionar itens da fatura
-            $invoice->items()->delete();
-            
-            // Recarregar fees após possíveis resets
-            $monthlyFeesData = MonthlyFee::where('student_id', $student->id)
+            $monthlyFeesData = MonthlyFee::with('classModel')
+                ->where('student_id', $student->id)
                 ->forMonth($year, $month)
                 ->get();
 
+            // 2) Reabrir mensalidades inconsistentes e corrigir valores zerados.
             foreach ($monthlyFeesData as $fee) {
-                // Aqui está o pulo do gato: se for uma fatura de rascunho, 
-                // queremos mostrar o valor da mensalidade nela, mesmo que o status da fee tenha sido 'pago' (se resetamos acima)
-                if ($fee->amount > 0) {
+                $isGhostPaid = $fee->status === 'paid' && !$fee->payments()->exists();
+                $forceReset = $force && (float) $invoice->total <= 0 && $fee->status === 'paid';
+
+                if ($isGhostPaid || $forceReset) {
+                    $fee->update([
+                        'status' => 'pending',
+                        'amount_paid' => 0,
+                    ]);
+                    $fee->refresh();
+                    $reopenedFees++;
+                }
+
+                $resolvedAmount = $this->resolveMonthlyFeeAmount($student, $fee->classModel);
+                if ((float) $fee->amount <= 0 && $resolvedAmount > 0) {
+                    $fee->update([
+                        'amount' => $resolvedAmount,
+                        'due_date' => $dueDate,
+                    ]);
+                    $fee->refresh();
+                    $updatedFees++;
+                }
+            }
+
+            // 3) Limpar e reconstruir itens.
+            $invoice->items()->delete();
+
+            foreach ($monthlyFeesData as $fee) {
+                $remainingAmount = (float) $fee->remaining_amount;
+                if ($remainingAmount > 0) {
                     $invoice->addItem(
                         'monthly_fee',
                         "Mensalidade {$invoice->reference}" . ($fee->classModel ? " - {$fee->classModel->name}" : ''),
                         1,
-                        $fee->amount // Usamos o amount total para garantir que a fatura reflita o valor real
+                        $remainingAmount
                     );
                 }
             }
 
-            // Material e Extras
-            $materialFee = \App\Models\MaterialFee::where('student_id', $student->id)->forYear($year)->pending()->first();
+            $materialFee = MaterialFee::where('student_id', $student->id)
+                ->forYear($year)
+                ->pending()
+                ->first();
+
             if ($materialFee && $materialFee->remaining_amount > 0) {
                 $invoice->addItem('material_fee', "Taxa de Material {$year}", 1, $materialFee->remaining_amount);
             }
 
-            $extraHours = \App\Models\AttendanceLog::where('student_id', $student->id)->forMonth($year, $month)->where('extra_charge', '>', 0)->get();
-            if ($extraHours->sum('extra_charge') > 0) {
-                $invoice->addItem('extra_hours', "Horas extras", 1, $extraHours->sum('extra_charge'));
+            $extraHours = AttendanceLog::where('student_id', $student->id)
+                ->forMonth($year, $month)
+                ->where('extra_charge', '>', 0)
+                ->get();
+
+            $extraCharge = (float) $extraHours->sum('extra_charge');
+            if ($extraCharge > 0) {
+                $invoice->addItem('extra_hours', "Horas extras", 1, $extraCharge);
+            }
+
+            $materialUsages = SchoolMaterialUsage::where('student_id', $student->id)
+                ->where(function ($query) use ($invoice) {
+                    $query->whereNull('invoice_id')
+                        ->orWhere('invoice_id', $invoice->id);
+                })
+                ->whereYear('usage_date', $year)
+                ->whereMonth('usage_date', $month)
+                ->with('material')
+                ->get();
+
+            foreach ($materialUsages as $usage) {
+                $quantity = (float) $usage->quantity;
+                $unitPrice = (float) $usage->value;
+
+                if ($quantity <= 0 || $unitPrice <= 0) {
+                    continue;
+                }
+
+                $invoice->addItem(
+                    'material_fee',
+                    "Material: " . ($usage->material->name ?? 'Material') . " (" . $usage->usage_date->format('d/m/Y') . ")",
+                    $quantity,
+                    $unitPrice,
+                    $usage->notes
+                );
+
+                if (!$usage->invoice_id) {
+                    $usage->update(['invoice_id' => $invoice->id]);
+                }
+            }
+
+            foreach ($student->activeSportEnrollments as $enrollment) {
+                $sportFee = (float) $enrollment->monthly_fee;
+
+                if ($sportFee <= 0) {
+                    continue;
+                }
+
+                $invoice->addItem(
+                    'sport_fee',
+                    "Esporte: " . ($enrollment->sport->name ?? 'Esporte'),
+                    1,
+                    $sportFee
+                );
             }
 
             $invoice->recalculateTotals();
+            $invoice->refresh();
+
+            if (!$invoice->items()->exists() || (float) $invoice->total <= 0) {
+                $invoice->items()->delete();
+                $invoice->delete();
+                $deletedInvoices++;
+                $this->warn(" - Fatura removida (sem itens cobraveis apos recalculo).");
+                continue;
+            }
+
             $this->info(" - Fatura recalculada. Novo total: R$ {$invoice->total}");
             $fixedCount++;
         }
 
         $this->info("\nReparo concluído!");
-        $this->info("Invoices processadas: {$fixedCount}");
-        $this->info("Novas mensalidades criadas: {$createdFees}");
-        
-        return 0;
+        $this->info("Faturas corrigidas: {$fixedCount}");
+        $this->info("Faturas removidas (sem cobrança): {$deletedInvoices}");
+        $this->info("Mensalidades criadas: {$createdFees}");
+        $this->info("Mensalidades atualizadas: {$updatedFees}");
+        $this->info("Mensalidades reabertas: {$reopenedFees}");
+
+        return self::SUCCESS;
     }
 
-    private function makeDueDate($year, $month, $day)
+    private function makeDueDate(int $year, int $month, int $day)
     {
         return BillingCycle::makeDueDate((int) $year, (int) $month, (int) $day);
+    }
+
+    private function resolveMonthlyFeeAmount(\App\Models\Student $student, ?\App\Models\ClassModel $classModel = null): float
+    {
+        $studentFee = (float) $student->monthly_fee;
+        if ($studentFee > 0) {
+            return $studentFee;
+        }
+
+        if ($classModel && (float) $classModel->monthly_fee > 0) {
+            return (float) $classModel->monthly_fee;
+        }
+
+        return 0.0;
     }
 }

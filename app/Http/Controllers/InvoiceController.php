@@ -126,11 +126,19 @@ class InvoiceController extends Controller
     {
         // Add monthly fees (ensure they exist first if student has a fee set)
         $student = $invoice->student;
-        if ($student && $student->monthly_fee > 0) {
-            $activeEnrollments = $student->activeEnrollments;
+        if (!$student) {
+            return;
+        }
 
-            if ($activeEnrollments->isEmpty()) {
-                MonthlyFee::firstOrCreate(
+        $student->loadMissing(['activeEnrollments.classModel', 'activeSportEnrollments.sport']);
+        $activeEnrollments = $student->activeEnrollments;
+        $dueDate = $this->makeDueDate($invoice->year, $invoice->month, (int) ($student->due_day ?? Setting::getPaymentDueDay()));
+
+        if ($activeEnrollments->isEmpty()) {
+            $resolvedAmount = $this->resolveMonthlyFeeAmount($student);
+
+            if ($resolvedAmount > 0) {
+                $fee = MonthlyFee::firstOrCreate(
                     [
                         'student_id' => $student->id,
                         'class_id' => null,
@@ -138,41 +146,64 @@ class InvoiceController extends Controller
                         'month' => $invoice->month,
                     ],
                     [
-                        'amount' => $student->monthly_fee,
+                        'amount' => $resolvedAmount,
                         'status' => 'pending',
-                        'due_date' => $this->makeDueDate($invoice->year, $invoice->month, (int) ($student->due_day ?? Setting::getPaymentDueDay())),
+                        'due_date' => $dueDate,
                     ]
                 );
-            } else {
-                foreach ($activeEnrollments as $enrollment) {
-                    MonthlyFee::firstOrCreate(
-                        [
-                            'student_id' => $student->id,
-                            'class_id' => $enrollment->class_id,
-                            'year' => $invoice->year,
-                            'month' => $invoice->month,
-                        ],
-                        [
-                            'amount' => $student->monthly_fee,
-                            'status' => 'pending',
-                            'due_date' => $this->makeDueDate($invoice->year, $invoice->month, (int) ($student->due_day ?? Setting::getPaymentDueDay())),
-                        ]
-                    );
+
+                if ((float) $fee->amount <= 0) {
+                    $fee->update([
+                        'amount' => $resolvedAmount,
+                        'due_date' => $dueDate,
+                    ]);
+                }
+            }
+        } else {
+            foreach ($activeEnrollments as $enrollment) {
+                $resolvedAmount = $this->resolveMonthlyFeeAmount($student, $enrollment->classModel);
+
+                if ($resolvedAmount <= 0) {
+                    continue;
+                }
+
+                $fee = MonthlyFee::firstOrCreate(
+                    [
+                        'student_id' => $student->id,
+                        'class_id' => $enrollment->class_id,
+                        'year' => $invoice->year,
+                        'month' => $invoice->month,
+                    ],
+                    [
+                        'amount' => $resolvedAmount,
+                        'status' => 'pending',
+                        'due_date' => $dueDate,
+                    ]
+                );
+
+                if ((float) $fee->amount <= 0) {
+                    $fee->update([
+                        'amount' => $resolvedAmount,
+                        'due_date' => $dueDate,
+                    ]);
                 }
             }
         }
 
-        $monthlyFees = MonthlyFee::where('student_id', $invoice->student_id)
+        $monthlyFees = MonthlyFee::with('classModel')
+            ->where('student_id', $invoice->student_id)
             ->forMonth($invoice->year, $invoice->month)
             ->get();
             
         foreach ($monthlyFees as $fee) {
-            // If fee exists but has 0 amount, and student has a fee, update it
-            if ($fee->amount <= 0 && $student && $student->monthly_fee > 0) {
+            // If fee exists but has 0 amount, recover it from student or class fee.
+            $resolvedAmount = $this->resolveMonthlyFeeAmount($student, $fee->classModel);
+            if ((float) $fee->amount <= 0 && $resolvedAmount > 0) {
                 $fee->update([
-                    'amount' => $student->monthly_fee,
+                    'amount' => $resolvedAmount,
                     'due_date' => $this->makeDueDate($invoice->year, $invoice->month, (int) ($student->due_day ?? Setting::getPaymentDueDay())),
                 ]);
+                $fee->refresh();
             }
 
             // Auto-heal inconsistent paid fee without any payment evidence.
@@ -197,12 +228,13 @@ class InvoiceController extends Controller
                 $fee->refresh();
             }
 
-            if ($fee->remaining_amount > 0) {
+            $remainingAmount = (float) $fee->remaining_amount;
+            if ($remainingAmount > 0) {
                 $invoice->addItem(
                     'monthly_fee',
                     "Mensalidade {$invoice->reference}" . ($fee->classModel ? " - {$fee->classModel->name}" : ''),
                     1,
-                    $fee->remaining_amount
+                    $remainingAmount
                 );
             }
         }
@@ -259,11 +291,18 @@ class InvoiceController extends Controller
             ->get();
 
         foreach ($materialUsages as $usage) {
+            $quantity = (float) $usage->quantity;
+            $unitPrice = (float) $usage->value;
+
+            if ($quantity <= 0 || $unitPrice <= 0) {
+                continue;
+            }
+
             $invoice->addItem(
                 'material_fee',
                 "Material: " . ($usage->material->name ?? 'Material') . " (" . $usage->usage_date->format('d/m/Y') . ")",
-                $usage->quantity,
-                $usage->value,
+                $quantity,
+                $unitPrice,
                 $usage->notes
             );
             
@@ -276,11 +315,17 @@ class InvoiceController extends Controller
         // Add sports fees
         $activeSportEnrollments = $student->activeSportEnrollments;
         foreach ($activeSportEnrollments as $enrollment) {
+            $sportFee = (float) $enrollment->monthly_fee;
+
+            if ($sportFee <= 0) {
+                continue;
+            }
+
             $invoice->addItem(
                 'sport_fee',
                 "Esporte: " . ($enrollment->sport->name ?? 'Esporte'),
                 1,
-                $enrollment->monthly_fee
+                $sportFee
             );
         }
     }
@@ -586,13 +631,29 @@ class InvoiceController extends Controller
         ]);
 
         $this->calculateItems($invoice);
+        $invoice->refresh();
 
-        if (!$invoice->items()->exists()) {
+        if (!$invoice->items()->exists() || (float) $invoice->total <= 0) {
+            $invoice->items()->delete();
             $invoice->delete();
             return null;
         }
 
         return $invoice;
+    }
+
+    private function resolveMonthlyFeeAmount(Student $student, ?\App\Models\ClassModel $classModel = null): float
+    {
+        $studentFee = (float) $student->monthly_fee;
+        if ($studentFee > 0) {
+            return $studentFee;
+        }
+
+        if ($classModel && (float) $classModel->monthly_fee > 0) {
+            return (float) $classModel->monthly_fee;
+        }
+
+        return 0.0;
     }
 
     private function makeDueDate(int $year, int $month, int $day): Carbon
