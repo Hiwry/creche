@@ -10,6 +10,7 @@ use App\Models\StudentDocument;
 use App\Models\Enrollment;
 use App\Models\ClassModel;
 use App\Models\MonthlyFee;
+use App\Models\Invoice;
 use App\Models\MaterialFee;
 use App\Models\Setting;
 use App\Support\BillingCycle;
@@ -345,6 +346,9 @@ class StudentController extends Controller
         DB::beginTransaction();
         
         try {
+            $previousDueDay = (int) ($student->due_day ?? 0);
+            $previousMonthlyFee = (float) ($student->monthly_fee ?? 0);
+
             $data = $request->except([
                 'photo',
                 'authorized_pickups',
@@ -452,28 +456,46 @@ class StudentController extends Controller
             }
             
             $student->update($data);
-            
-            // Update pending monthly fees if fee or due day changed
-            if ($request->filled('monthly_fee') || $request->filled('due_day')) {
+
+            $dueDayChanged = $previousDueDay !== (int) $student->due_day;
+            $monthlyFeeChanged = round($previousMonthlyFee, 2) !== round((float) $student->monthly_fee, 2);
+
+            // Keep pending/overdue monthly fees aligned with latest configured amount.
+            if ($monthlyFeeChanged) {
                 $pendingFees = MonthlyFee::where('student_id', $student->id)
                     ->pending()
                     ->get();
-                    
+
                 foreach ($pendingFees as $fee) {
-                    $updateData = [];
-                    
-                    if ($request->filled('monthly_fee')) {
-                        // Only update amount if it was using the old default/class fee
-                        // Or simplifying: Just update to the new student fee as that's the intention
-                        $updateData['amount'] = $request->monthly_fee;
+                    $fee->update(['amount' => $student->monthly_fee]);
+                }
+            }
+
+            // Keep existing records with the configured due day.
+            if ($dueDayChanged) {
+                $fees = MonthlyFee::where('student_id', $student->id)
+                    ->where('status', '!=', 'cancelled')
+                    ->get();
+
+                foreach ($fees as $fee) {
+                    $newDueDate = $this->makeDueDate($fee->year, $fee->month, (int) $student->due_day);
+                    $currentDueDate = $fee->due_date ? $fee->due_date->toDateString() : null;
+
+                    if ($currentDueDate !== $newDueDate->toDateString()) {
+                        $fee->update(['due_date' => $newDueDate]);
                     }
-                    
-                    if ($request->filled('due_day')) {
-                        $updateData['due_date'] = $this->makeDueDate($fee->year, $fee->month, (int) $request->due_day);
-                    }
-                    
-                    if (!empty($updateData)) {
-                        $fee->update($updateData);
+                }
+
+                $invoices = Invoice::where('student_id', $student->id)
+                    ->where('status', '!=', 'cancelled')
+                    ->get();
+
+                foreach ($invoices as $invoice) {
+                    $newDueDate = $this->makeDueDate($invoice->year, $invoice->month, (int) $student->due_day);
+                    $currentDueDate = $invoice->due_date ? $invoice->due_date->toDateString() : null;
+
+                    if ($currentDueDate !== $newDueDate->toDateString()) {
+                        $invoice->update(['due_date' => $newDueDate]);
                     }
                 }
             }

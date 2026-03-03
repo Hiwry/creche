@@ -93,6 +93,15 @@ class InvoiceController extends Controller
             return back()->with('error', 'Apenas faturas em rascunho podem ser recalculadas.');
         }
 
+        $student = $invoice->student;
+        if ($student) {
+            $invoice->due_date = $this->makeDueDate(
+                $invoice->year,
+                $invoice->month,
+                (int) ($student->due_day ?? Setting::getPaymentDueDay())
+            );
+        }
+
         // Remove existing items
         $invoice->items()->delete();
 
@@ -198,12 +207,24 @@ class InvoiceController extends Controller
         foreach ($monthlyFees as $fee) {
             // If fee exists but has 0 amount, recover it from student or class fee.
             $resolvedAmount = $this->resolveMonthlyFeeAmount($student, $fee->classModel);
+            $expectedDueDate = $this->makeDueDate(
+                $invoice->year,
+                $invoice->month,
+                (int) ($student->due_day ?? Setting::getPaymentDueDay())
+            );
+            $currentDueDate = $fee->due_date ? $fee->due_date->toDateString() : null;
+            $shouldSyncDueDate = $currentDueDate !== $expectedDueDate->toDateString();
+
             if ((float) $fee->amount <= 0 && $resolvedAmount > 0) {
                 $fee->update([
                     'amount' => $resolvedAmount,
-                    'due_date' => $this->makeDueDate($invoice->year, $invoice->month, (int) ($student->due_day ?? Setting::getPaymentDueDay())),
+                    'due_date' => $expectedDueDate,
                 ]);
                 $fee->refresh();
+            } elseif ($shouldSyncDueDate) {
+                $fee->update([
+                    'due_date' => $expectedDueDate,
+                ]);
             }
 
             // Auto-heal inconsistent paid fee without any payment evidence.
